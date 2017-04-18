@@ -121,15 +121,19 @@ namespace HomeAutio.Mqtt.Ecobee
                     Selection = new Selection { SelectionType = "thermostats", SelectionMatch = thermostatId }
                 };
 
+                _log.Info($"Sending request to {request.Uri} with thermostat selection {thermostatId} for action {thermostatTopic}");
+
                 switch (thermostatTopic)
                 {
                     case "hvacMode/set":
                         request.Thermostat = new { Settings = new { HvacMode = message } };
-                        _client.Post<ThermostatUpdateRequest, Response>(request);
+                        var hvacModeResponse =_client.Post<ThermostatUpdateRequest, Response>(request).GetAwaiter().GetResult();
+                        _log.Info($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
                         break;
                     case "desiredFanMode/set":
                         request.Thermostat = new { Runtime = new { DesiredFanMode = message } };
-                        _client.Post<ThermostatUpdateRequest, Response>(request);
+                        var desiredFanModeResponse =_client.Post<ThermostatUpdateRequest, Response>(request).GetAwaiter().GetResult();
+                        _log.Info($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
                         break;
                     case "hold/set":
                         if (message == "hold")
@@ -154,15 +158,20 @@ namespace HomeAutio.Mqtt.Ecobee
                         if (int.TryParse(message, out int desiredHeatValue))
                         {
                             request.Thermostat = new { Runtime = new { DesiredHeat = desiredHeatValue * 100 } };
-                            _client.Post<ThermostatUpdateRequest, Response>(request);
+                            var desiredHeatResponse = _client.Post<ThermostatUpdateRequest, Response>(request).GetAwaiter().GetResult();
+                            _log.Info($"{request.Uri} response: ({desiredHeatResponse.Status.Code}) {desiredHeatResponse.Status.Message}");
                         }
                         break;
                     case "desiredCool/set":
                         if (int.TryParse(message, out int desiredCoolValue))
                         {
                             request.Thermostat = new { Runtime = new { DesiredCool = desiredCoolValue * 100 } };
-                            _client.Post<ThermostatUpdateRequest, Response>(request);
+                            var desiredCoolResponse = _client.Post<ThermostatUpdateRequest, Response>(request).GetAwaiter().GetResult();
+                            _log.Info($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
                         }
+                        break;
+                    default:
+                        _log.Warn($"Unknown command topic {thermostatTopic} for thermostat {thermostatId}");
                         break;
                 }
             }
