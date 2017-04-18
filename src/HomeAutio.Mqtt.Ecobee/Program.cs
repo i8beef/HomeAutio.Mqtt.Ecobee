@@ -7,7 +7,7 @@ using System.IO;
 using System.Text;
 using Topshelf;
 
-namespace HomeAutio.Mqtt.Apex
+namespace HomeAutio.Mqtt.Ecobee
 {
     class Program
     {

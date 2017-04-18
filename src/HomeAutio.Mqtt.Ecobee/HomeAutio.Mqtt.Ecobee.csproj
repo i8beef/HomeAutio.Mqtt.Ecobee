@@ -7,8 +7,8 @@
     <ProjectGuid>{26E2F6BB-0079-4D53-BC3F-7710F755A255}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>HomeAutio.Mqtt.Apex</RootNamespace>
-    <AssemblyName>HomeAutio.Mqtt.Apex</AssemblyName>
+    <RootNamespace>HomeAutio.Mqtt.Ecobee</RootNamespace>
+    <AssemblyName>HomeAutio.Mqtt.Ecobee</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

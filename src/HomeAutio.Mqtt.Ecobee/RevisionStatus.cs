@@ -1,4 +1,4 @@
-﻿namespace HomeAutio.Mqtt.Apex
+﻿namespace HomeAutio.Mqtt.Ecobee
 {
     internal class RevisionStatus
     {

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace HomeAutio.Mqtt.Apex
+namespace HomeAutio.Mqtt.Ecobee
 {
     internal class ThermostatStatus
     {

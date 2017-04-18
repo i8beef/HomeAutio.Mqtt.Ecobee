@@ -11,7 +11,7 @@ using System.Text;
 using System.Timers;
 using uPLibrary.Networking.M2Mqtt.Messages;
 
-namespace HomeAutio.Mqtt.Apex
+namespace HomeAutio.Mqtt.Ecobee
 {
     public class EcobeeMqttService : ServiceBase
     {
