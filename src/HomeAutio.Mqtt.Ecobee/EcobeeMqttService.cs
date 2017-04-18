@@ -1,5 +1,4 @@
 ﻿using HomeAutio.Mqtt.Core;
-using HomeAutio.Mqtt.Core.Utilities;
 using I8Beef.Ecobee;
 using I8Beef.Ecobee.Protocol;
 using I8Beef.Ecobee.Protocol.Functions;
@@ -98,8 +97,6 @@ namespace HomeAutio.Mqtt.Apex
             // SetHold (hold, resume) - hold/set
             // Desired Heat - desiredHeat/set
             // Desired Cool - desiredCool/set
-
-            // TODO: Figure out how to handle partial object requests
             var request = new ThermostatUpdateRequest
             {
                 Selection = new Selection { SelectionType = "thermostat", SelectionMatch = thermostatId }
