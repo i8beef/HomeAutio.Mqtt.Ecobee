@@ -1,6 +1,8 @@
 ﻿using HomeAutio.Mqtt.Core;
 using HomeAutio.Mqtt.Core.Utilities;
 using I8Beef.Ecobee;
+using I8Beef.Ecobee.Protocol;
+using I8Beef.Ecobee.Protocol.Functions;
 using I8Beef.Ecobee.Protocol.Objects;
 using I8Beef.Ecobee.Protocol.Thermostat;
 using NLog;
@@ -85,37 +87,68 @@ namespace HomeAutio.Mqtt.Apex
             var message = Encoding.UTF8.GetString(e.Message);
             _log.Debug("MQTT message received for topic " + e.Topic + ": " + message);
 
+            // Parse topic out
+            var topicWithoutRoot = e.Topic.Substring(_topicRoot.Length + 1);
+            var thermostatId = topicWithoutRoot.Substring(0, topicWithoutRoot.IndexOf('/'));
+            var thermostatTopic = topicWithoutRoot.Substring(topicWithoutRoot.IndexOf('/') + 1);
+
             // ONLY VALID OPTIONS
-            // HvacMode
-            // Fan on off auto
-            // SetHold
-            // Desired Heat
-            // Desired Cool
+            // HvacMode (auto, auxHeatOnly, cool, heat, off) - hvacMode/set
+            // Fan (on, off, auto) - desiredFanMode/set
+            // SetHold (hold, resume) - hold/set
+            // Desired Heat - desiredHeat/set
+            // Desired Cool - desiredCool/set
 
-            //if (e.Topic == _topicRoot + "/feedCycle/set" && _feedCycleMap.ContainsKey(message.ToUpper()))
-            //{
-            //    var feed = _feedCycleMap[message.ToUpper()];
-            //    _client..SetFeed(feed);
-            //}
-            //else if(_topicOutletMap.ContainsKey(e.Topic))
-            //{
-            //    var outlet = _topicOutletMap[e.Topic];
-            //    OutletState outletState;
-            //    switch (message.ToLower())
-            //    {
-            //        case "on":
-            //            outletState = OutletState.On;
-            //            break;
-            //        case "off":
-            //            outletState = OutletState.Off;
-            //            break;
-            //        default:
-            //            outletState = OutletState.Auto;
-            //            break;
-            //    }
+            // TODO: Figure out how to handle partial object requests
+            var request = new ThermostatUpdateRequest
+            {
+                Selection = new Selection { SelectionType = "thermostat", SelectionMatch = thermostatId }
+            };
 
-            //    _client.SetOutlet(outlet, outletState);
-            //}
+            switch (thermostatTopic)
+            {
+                case "hvacMode/set":
+                    request.Thermostat = new { Settings = new { HvacMode = message } };
+                    _client.Post<ThermostatUpdateRequest, Response>(request);
+                    break;
+                case "desiredFanMode/set":
+                    request.Thermostat = new { Runtime = new { DesiredFanMode = message } };
+                    _client.Post<ThermostatUpdateRequest, Response>(request);
+                    break;
+                case "hold/set":
+                    if (message == "hold")
+                    {
+                        // TODO: Figure out how to pass both desired heat and cool values at same time
+                        var holdFunc = new SetHoldFunction();
+                        ((SetHoldParams)holdFunc.Params).HoldType = "indefinite";
+                        ((SetHoldParams)holdFunc.Params).CoolHoldTemp = 0;
+                        ((SetHoldParams)holdFunc.Params).HeatHoldTemp = 0;
+                        request.Functions.Add(holdFunc);
+                        //_client.Post<ThermostatUpdateRequest, Response>(request);
+                    }
+                    else
+                    {
+                        var resumeFunc = new ResumeProgramFunction();
+                        ((ResumeProgramParams)resumeFunc.Params).ResumeAll = true;
+                        request.Functions.Add(resumeFunc);
+                        _client.Post<ThermostatUpdateRequest, Response>(request);
+                    }
+                    break;
+                case "desiredHeat/set":
+                    if (int.TryParse(message, out int desiredHeatValue))
+                    {
+                        request.Thermostat = new { Runtime = new { DesiredHeat = desiredHeatValue * 100 } };
+                        _client.Post<ThermostatUpdateRequest, Response>(request);
+                    }
+                    break;
+                case "desiredCool/set":
+                    if (int.TryParse(message, out int desiredCoolValue))
+                    {
+                        request.Thermostat = new { Runtime = new { DesiredCool = desiredCoolValue * 100 } };
+                        _client.Post<ThermostatUpdateRequest, Response>(request);
+                    }
+                    break;
+            }
         }
 
         #endregion

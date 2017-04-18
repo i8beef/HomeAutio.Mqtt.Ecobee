@@ -37,8 +37,8 @@
       <HintPath>..\packages\HomeAutio.Mqtt.Core.1.0.0.18\lib\net452\HomeAutio.Mqtt.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="I8Beef.Ecobee, Version=1.0.0.9, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\I8Beef.Ecobee.1.0.0.9\lib\net452\I8Beef.Ecobee.dll</HintPath>
+    <Reference Include="I8Beef.Ecobee, Version=1.0.0.11, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\I8Beef.Ecobee.1.0.0.11\lib\net452\I8Beef.Ecobee.dll</HintPath>
     </Reference>
     <Reference Include="M2Mqtt.Net, Version=4.3.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\M2Mqtt.4.3.0.0\lib\net45\M2Mqtt.Net.dll</HintPath>
