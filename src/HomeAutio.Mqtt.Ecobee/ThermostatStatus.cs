@@ -10,28 +10,28 @@ namespace HomeAutio.Mqtt.Ecobee
 
             Status = new Dictionary<string, string>();
 
-            EquipmentStatus = new Dictionary<string, bool>
+            EquipmentStatus = new Dictionary<string, string>
             {
-                { "heatPump", false },
-                { "heatPump2", false },
-                { "heatPump3", false },
-                { "compCool1", false },
-                { "compCool2", false },
-                { "auxHeat1", false },
-                { "auxHeat2", false },
-                { "auxHeat3", false },
-                { "fan", false },
-                { "humidifier", false },
-                { "dehumidifier", false },
-                { "ventilator", false },
-                { "economizer", false },
-                { "compHotWater", false },
-                { "auxHotWater", false }
+                { "heatPump", "off" },
+                { "heatPump2", "off" },
+                { "heatPump3", "off" },
+                { "compCool1", "off" },
+                { "compCool2", "off" },
+                { "auxHeat1", "off" },
+                { "auxHeat2", "off" },
+                { "auxHeat3", "off" },
+                { "fan", "off" },
+                { "humidifier", "off" },
+                { "dehumidifier", "off" },
+                { "ventilator", "off" },
+                { "economizer", "off" },
+                { "compHotWater", "off" },
+                { "auxHotWater", "off" }
             };
         }
 
         public IDictionary<string, IDictionary<string, string>> Sensors { get; }
         public IDictionary<string, string> Status { get; }
-        public IDictionary<string, bool> EquipmentStatus { get; }
+        public IDictionary<string, string> EquipmentStatus { get; }
     }
 }

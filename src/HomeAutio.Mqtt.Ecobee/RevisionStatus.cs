@@ -6,9 +6,9 @@
         {
             var parts = csv.Split(':');
 
-            ThermostatRevision = parts[0];
-            ThermostatRevision = parts[1];
-            ThermostatRevision = parts[2];
+            ThermostatIdentifier = parts[0];
+            ThermostatName = parts[1];
+            Connected = parts[2] == "true";
 
             if (parts.Length >= 3)
                 ThermostatRevision = parts[3];

@@ -23,10 +23,12 @@ namespace HomeAutio.Mqtt.Ecobee
             var ecobeeName = ConfigurationManager.AppSettings["ecobeeName"];
             var ecobeeAppKey = ConfigurationManager.AppSettings["ecobeeAppKey"];
 
+            var appPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             // Default to once every 3 minutes as per API guide
-            int ecobeeRereshInterval = 240000;
+            int ecobeeRereshInterval = 180000;
             if (int.TryParse(ConfigurationManager.AppSettings["ecobeeRefreshInterval"], out ecobeeRereshInterval))
-                ecobeeRereshInterval = Math.Max(240000, ecobeeRereshInterval * 1000);
+                ecobeeRereshInterval = Math.Max(180000, ecobeeRereshInterval * 1000);
 
             if (args.Length > 0 && args[0] == "auth")
             {
@@ -45,7 +47,7 @@ namespace HomeAutio.Mqtt.Ecobee
             }
             else
             {
-                if (!File.Exists(@"token.txt"))
+                if (!File.Exists(Path.Combine(appPath, "token.txt")))
                 {
                     log.Error("Token file token.txt not found");
                     Console.WriteLine("Token file token.txt not found. Please run  'HomeAutio.Mqtt.Ecobee.exe auth' to retrieve and cache new auth token.");
@@ -55,7 +57,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 }
 
                 log.Info("Reading cached tokens");
-                var tokenText = File.ReadAllLines(@"token.txt");
+                var tokenText = File.ReadAllLines(Path.Combine(appPath, "token.txt"));
 
                 var tokenExpiration = DateTime.Parse(tokenText[0]);
                 var accessToken = tokenText[1];
@@ -97,13 +99,19 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <param name="token">The token to cache.</param>
         public static void WriteTokenFile(AuthToken token)
         {
+            var log = LogManager.GetCurrentClassLogger();
+
+            log.Info("Writing new token to cache");
+
             var text = new StringBuilder();
             text.AppendLine(DateTime.Now.AddSeconds(token.ExpiresIn).ToString());
             text.AppendLine(token.AccessToken);
             text.AppendLine(token.RefreshToken);
 
+            var appPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
             // Cache the returned tokens
-            File.WriteAllText(@"token.txt", text.ToString());
+            File.WriteAllText(Path.Combine(appPath, "token.txt"), text.ToString());
         }
     }
 }
