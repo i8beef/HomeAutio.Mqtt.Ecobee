@@ -131,7 +131,7 @@ namespace HomeAutio.Mqtt.Ecobee
                         _log.Info($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
                         break;
                     case "desiredFanMode/set":
-                        request.Thermostat = new { Runtime = new { Vent = message } };
+                        request.Thermostat = new { Settings = new { Vent = message } };
                         var desiredFanModeResponse =_client.Post<ThermostatUpdateRequest, Response>(request).GetAwaiter().GetResult();
                         _log.Info($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
                         break;
