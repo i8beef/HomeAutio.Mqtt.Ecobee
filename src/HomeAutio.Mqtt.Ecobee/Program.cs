@@ -1,17 +1,24 @@
-﻿using I8Beef.Ecobee;
-using I8Beef.Ecobee.Messages;
-using NLog;
-using System;
+﻿using System;
 using System.Configuration;
 using System.IO;
 using System.Text;
+using I8Beef.Ecobee;
+using I8Beef.Ecobee.Messages;
+using NLog;
 using Topshelf;
 
 namespace HomeAutio.Mqtt.Ecobee
 {
-    class Program
+    /// <summary>
+    /// Main program entrypoint.
+    /// </summary>
+    public class Program
     {
-        static void Main(string[] args)
+        /// <summary>
+        /// Main method.
+        /// </summary>
+        /// <param name="args">Command line arguments.</param>
+        public static void Main(string[] args)
         {
             var log = LogManager.GetCurrentClassLogger();
 
@@ -26,9 +33,10 @@ namespace HomeAutio.Mqtt.Ecobee
             var appPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
             // Default to once every 3 minutes as per API guide
-            int ecobeeRereshInterval = 180000;
-            if (int.TryParse(ConfigurationManager.AppSettings["ecobeeRefreshInterval"], out ecobeeRereshInterval))
+            if (int.TryParse(ConfigurationManager.AppSettings["ecobeeRefreshInterval"], out int ecobeeRereshInterval))
+            {
                 ecobeeRereshInterval = Math.Max(180000, ecobeeRereshInterval * 1000);
+            }
 
             if (args.Length > 0 && args[0] == "auth")
             {
@@ -67,11 +75,12 @@ namespace HomeAutio.Mqtt.Ecobee
                 log.Info("Refresh Token: " + refreshToken);
 
                 var client = new Client(ecobeeAppKey, accessToken, refreshToken, tokenExpiration);
-                client.AuthTokenUpdated += (o, e) => { WriteTokenFile(e); };
+                client.AuthTokenUpdated += (o, e) => { WriteTokenFile(e.AuthToken); };
 
                 HostFactory.Run(x =>
                 {
                     x.UseNLog();
+                    x.OnException((ex) => { log.Error(ex); });
 
                     x.Service<EcobeeMqttService>(s =>
                     {

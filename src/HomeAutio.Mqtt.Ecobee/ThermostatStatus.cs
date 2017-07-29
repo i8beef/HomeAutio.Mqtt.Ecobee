@@ -2,8 +2,14 @@
 
 namespace HomeAutio.Mqtt.Ecobee
 {
+    /// <summary>
+    /// Internal thermostat status.
+    /// </summary>
     internal class ThermostatStatus
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ThermostatStatus"/> class.
+        /// </summary>
         public ThermostatStatus()
         {
             Sensors = new Dictionary<string, IDictionary<string, string>>();
@@ -30,8 +36,19 @@ namespace HomeAutio.Mqtt.Ecobee
             };
         }
 
+        /// <summary>
+        /// Sensor statuses.
+        /// </summary>
         public IDictionary<string, IDictionary<string, string>> Sensors { get; }
+
+        /// <summary>
+        /// Thermostat statuses.
+        /// </summary>
         public IDictionary<string, string> Status { get; }
+
+        /// <summary>
+        /// Equipment statuses.
+        /// </summary>
         public IDictionary<string, string> EquipmentStatus { get; }
     }
 }
