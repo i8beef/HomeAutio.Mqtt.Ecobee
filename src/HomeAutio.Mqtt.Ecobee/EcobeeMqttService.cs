@@ -20,17 +20,17 @@ namespace HomeAutio.Mqtt.Ecobee
     /// </summary>
     public class EcobeeMqttService : ServiceBase
     {
-        private ILogger<EcobeeMqttService> _log;
+        private readonly ILogger<EcobeeMqttService> _log;
+
+        private readonly Client _client;
+        private readonly string _ecobeeName;
+
+        private readonly IDictionary<string, RevisionStatus> _revisionStatusCache;
+        private readonly IDictionary<string, ThermostatStatus> _thermostatStatus;
+
         private bool _disposed = false;
-
-        private Client _client;
-        private string _ecobeeName;
-
         private System.Timers.Timer _refresh;
         private int _refreshInterval;
-
-        private IDictionary<string, RevisionStatus> _revisionStatusCache;
-        private IDictionary<string, ThermostatStatus> _thermostatStatus;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EcobeeMqttService"/> class.
