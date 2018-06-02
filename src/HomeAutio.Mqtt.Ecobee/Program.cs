@@ -72,6 +72,7 @@ namespace HomeAutio.Mqtt.Ecobee
                     {
                         var configuration = serviceProvider.GetRequiredService<IConfiguration>();
                         return new EcobeeMqttService(
+                            serviceProvider.GetRequiredService<IApplicationLifetime>(),
                             serviceProvider.GetRequiredService<ILogger<EcobeeMqttService>>(),
                             serviceProvider.GetRequiredService<Client>(),
                             configuration.GetValue<string>("ecobeeName"),

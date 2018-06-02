@@ -10,6 +10,7 @@ using I8Beef.Ecobee.Protocol;
 using I8Beef.Ecobee.Protocol.Functions;
 using I8Beef.Ecobee.Protocol.Objects;
 using I8Beef.Ecobee.Protocol.Thermostat;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 
@@ -35,6 +36,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <summary>
         /// Initializes a new instance of the <see cref="EcobeeMqttService"/> class.
         /// </summary>
+        /// <param name="applicationLifetime">Application lifetime instance.</param>
         /// <param name="logger">Logging instance.</param>
         /// <param name="ecobeeClient">The Ecobee client.</param>
         /// <param name="ecobeeName">The target Ecobee name.</param>
@@ -43,8 +45,8 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <param name="brokerPort">MQTT broker port.</param>
         /// <param name="brokerUsername">MQTT broker username.</param>
         /// <param name="brokerPassword">MQTT broker password.</param>
-        public EcobeeMqttService(ILogger<EcobeeMqttService> logger, Client ecobeeClient, string ecobeeName, int refreshInterval, string brokerIp, int brokerPort = 1883, string brokerUsername = null, string brokerPassword = null)
-            : base(logger, brokerIp, brokerPort, brokerUsername, brokerPassword, "ecobee/" + ecobeeName)
+        public EcobeeMqttService(IApplicationLifetime applicationLifetime, ILogger<EcobeeMqttService> logger, Client ecobeeClient, string ecobeeName, int refreshInterval, string brokerIp, int brokerPort = 1883, string brokerUsername = null, string brokerPassword = null)
+            : base(applicationLifetime, logger, brokerIp, brokerPort, brokerUsername, brokerPassword, "ecobee/" + ecobeeName)
         {
             _log = logger;
             _refreshInterval = refreshInterval * 1000;
