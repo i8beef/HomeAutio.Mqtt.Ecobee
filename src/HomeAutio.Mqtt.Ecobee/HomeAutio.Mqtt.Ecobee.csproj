@@ -23,7 +23,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HomeAutio.Mqtt.Core" Version="2.0.0.29" />
+    <PackageReference Include="HomeAutio.Mqtt.Core" Version="2.0.0.31" />
     <PackageReference Include="I8Beef.CodeAnalysis.RuleSet" Version="1.0.15" />
     <PackageReference Include="I8Beef.Ecobee" Version="2.2.0.60" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.1.0" />
