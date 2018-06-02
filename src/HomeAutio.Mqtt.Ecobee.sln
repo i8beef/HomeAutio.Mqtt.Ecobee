@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2010
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HomeAutio.Mqtt.Ecobee", "HomeAutio.Mqtt.Ecobee\HomeAutio.Mqtt.Ecobee.csproj", "{26E2F6BB-0079-4D53-BC3F-7710F755A255}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HomeAutio.Mqtt.Ecobee", "HomeAutio.Mqtt.Ecobee\HomeAutio.Mqtt.Ecobee.csproj", "{F328EF3C-23D6-4F63-8C29-FA07BBDC0F65}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,12 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{26E2F6BB-0079-4D53-BC3F-7710F755A255}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{26E2F6BB-0079-4D53-BC3F-7710F755A255}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{26E2F6BB-0079-4D53-BC3F-7710F755A255}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{26E2F6BB-0079-4D53-BC3F-7710F755A255}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F328EF3C-23D6-4F63-8C29-FA07BBDC0F65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F328EF3C-23D6-4F63-8C29-FA07BBDC0F65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F328EF3C-23D6-4F63-8C29-FA07BBDC0F65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F328EF3C-23D6-4F63-8C29-FA07BBDC0F65}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AAEC96A0-C8D5-4412-860E-BD27E560F167}
 	EndGlobalSection
 EndGlobal
