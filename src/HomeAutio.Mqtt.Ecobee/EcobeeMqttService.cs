@@ -47,7 +47,7 @@ namespace HomeAutio.Mqtt.Ecobee
             : base(logger, brokerIp, brokerPort, brokerUsername, brokerPassword, "ecobee/" + ecobeeName)
         {
             _log = logger;
-            _refreshInterval = refreshInterval;
+            _refreshInterval = refreshInterval * 1000;
             SubscribedTopics.Add(TopicRoot + "/+/+/set");
 
             _client = ecobeeClient;
