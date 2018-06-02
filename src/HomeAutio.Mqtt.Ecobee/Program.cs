@@ -144,7 +144,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 registrationConfig.GetValue<string>("ecobeeAppKey"),
                 ReadTokenFileAsync,
                 WriteTokenFileAsync);
-            if (!File.Exists(@"token.txt"))
+            if (!File.Exists(@"token.txt") || File.ReadAllText(@"token.txt") == string.Empty)
             {
                 Console.WriteLine("Getting new tokens");
                 var pin = await registrationClient.GetPinAsync();
