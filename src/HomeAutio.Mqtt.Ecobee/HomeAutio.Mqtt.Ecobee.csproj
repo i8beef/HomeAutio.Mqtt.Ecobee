@@ -23,11 +23,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HomeAutio.Mqtt.Core" Version="2.0.0.31" />
-    <PackageReference Include="I8Beef.CodeAnalysis.RuleSet" Version="1.0.15" />
-    <PackageReference Include="I8Beef.Ecobee" Version="2.2.0.60" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.1.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="2.1.0" />
+    <PackageReference Include="I8Beef.CodeAnalysis.RuleSet" Version="1.0.15">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="HomeAutio.Mqtt.Core" Version="2.0.0.33" />
+    <PackageReference Include="I8Beef.Ecobee" Version="2.2.0.62" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="2.1.1" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="2.0.2" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
     <PackageReference Include="Serilog.Sinks.RollingFile" Version="3.3.0" />
