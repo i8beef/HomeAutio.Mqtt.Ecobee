@@ -35,26 +35,42 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <returns>Awaitable <see cref="Task" />.</returns>
         public static async Task MainAsync(string[] args)
         {
+            // Setup config
+            var config = new ConfigurationBuilder()
+                .SetBasePath(Environment.CurrentDirectory)
+                .AddJsonFile("appsettings.json", optional: false)
+                .Build();
+
             // Setup logging
             Log.Logger = new LoggerConfiguration()
-              .Enrich.FromLogContext()
-              .WriteTo.Console()
-              .WriteTo.RollingFile(@"logs/HomeAutio.Mqtt.Ecobee.log")
-              .CreateLogger();
+                .ReadFrom.Configuration(config)
+                .CreateLogger();
 
-            // Valikdates existing or gets new tokens
-            await ValidateTokens();
+            try
+            {
+                // Validates existing or gets new tokens
+                await ValidateTokens(config);
 
-            var hostBuilder = new HostBuilder()
-                .ConfigureAppConfiguration((hostContext, config) =>
-                {
-                    config.SetBasePath(Environment.CurrentDirectory);
-                    config.AddJsonFile("appsettings.json", optional: false);
-                })
-                .ConfigureLogging((hostingContext, logging) =>
-                {
-                    logging.AddSerilog();
-                })
+                var hostBuilder = CreateHostBuilder(config);
+                await hostBuilder.RunConsoleAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Logger.Fatal(ex, ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Creates an <see cref="IHostBuilder"/>.
+        /// </summary>
+        /// <param name="config">External configuration.</param>
+        /// <returns>A configured <see cref="IHostBuilder"/>.</returns>
+        private static IHostBuilder CreateHostBuilder(IConfiguration config)
+        {
+            return new HostBuilder()
+                .ConfigureAppConfiguration((hostContext, configuration) => configuration.AddConfiguration(config))
+                .ConfigureLogging((hostingContext, logging) => logging.AddSerilog())
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Setup client
@@ -83,8 +99,6 @@ namespace HomeAutio.Mqtt.Ecobee
                             configuration.GetValue<string>("brokerPassword"));
                     });
                 });
-
-            await hostBuilder.RunConsoleAsync();
         }
 
         /// <summary>
@@ -93,7 +107,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <param name="storedAuthToken">Stored auth token.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>An awaitable <see cref="Task"/>.</returns>
-        public static async Task WriteTokenFileAsync(StoredAuthToken storedAuthToken, CancellationToken cancellationToken = default(CancellationToken))
+        private static async Task WriteTokenFileAsync(StoredAuthToken storedAuthToken, CancellationToken cancellationToken = default(CancellationToken))
         {
             // Cache the returned tokens
             _currentAuthToken = storedAuthToken;
@@ -112,7 +126,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The <see cref="StoredAuthToken"/>.</returns>
-        public static async Task<StoredAuthToken> ReadTokenFileAsync(CancellationToken cancellationToken = default(CancellationToken))
+        private static async Task<StoredAuthToken> ReadTokenFileAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             if (_currentAuthToken == null && File.Exists(@"token.txt"))
             {
@@ -131,20 +145,16 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <summary>
         /// Validates current, or gets new auth tokens.
         /// </summary>
+        /// <param name="config">External configuration.</param>
         /// <returns>An awaitable <see cref="Task"/>.</returns>
-        private static async Task ValidateTokens()
+        private static async Task ValidateTokens(IConfiguration config)
         {
-            // Configuration
-            var registrationConfig = new ConfigurationBuilder()
-                .SetBasePath(Environment.CurrentDirectory)
-                .AddJsonFile("appsettings.json")
-                .Build();
-
             // initialize tokens
             var registrationClient = new Client(
-                registrationConfig.GetValue<string>("ecobeeAppKey"),
+                config.GetValue<string>("ecobeeAppKey"),
                 ReadTokenFileAsync,
                 WriteTokenFileAsync);
+
             if (!File.Exists(@"token.txt") || File.ReadAllText(@"token.txt") == string.Empty)
             {
                 Console.WriteLine("Getting new tokens");
