@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "HomeAutio.Mqtt.Ecobee": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

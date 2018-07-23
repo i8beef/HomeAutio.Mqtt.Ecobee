@@ -10,7 +10,6 @@ using I8Beef.Ecobee.Protocol;
 using I8Beef.Ecobee.Protocol.Functions;
 using I8Beef.Ecobee.Protocol.Objects;
 using I8Beef.Ecobee.Protocol.Thermostat;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 
@@ -36,26 +35,18 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <summary>
         /// Initializes a new instance of the <see cref="EcobeeMqttService"/> class.
         /// </summary>
-        /// <param name="applicationLifetime">Application lifetime instance.</param>
         /// <param name="logger">Logging instance.</param>
         /// <param name="ecobeeClient">The Ecobee client.</param>
         /// <param name="ecobeeName">The target Ecobee name.</param>
         /// <param name="refreshInterval">The refresh interval.</param>
-        /// <param name="brokerIp">MQTT broker IP.</param>
-        /// <param name="brokerPort">MQTT broker port.</param>
-        /// <param name="brokerUsername">MQTT broker username.</param>
-        /// <param name="brokerPassword">MQTT broker password.</param>
+        /// <param name="brokerSettings">MQTT broker settings.</param>
         public EcobeeMqttService(
-            IApplicationLifetime applicationLifetime,
             ILogger<EcobeeMqttService> logger,
             Client ecobeeClient,
             string ecobeeName,
             int refreshInterval,
-            string brokerIp,
-            int brokerPort = 1883,
-            string brokerUsername = null,
-            string brokerPassword = null)
-            : base(applicationLifetime, logger, brokerIp, brokerPort, brokerUsername, brokerPassword, "ecobee/" + ecobeeName)
+            BrokerSettings brokerSettings)
+            : base(logger, brokerSettings, "ecobee/" + ecobeeName)
         {
             _log = logger;
             _refreshInterval = refreshInterval * 1000;
@@ -105,7 +96,7 @@ namespace HomeAutio.Mqtt.Ecobee
         protected override async void Mqtt_MqttMsgPublishReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-            _log.LogDebug("MQTT message received for topic " + e.ApplicationMessage.Topic + ": " + message);
+            _log.LogInformation("MQTT message received for topic " + e.ApplicationMessage.Topic + ": " + message);
 
             // Parse topic out
             var topicWithoutRoot = e.ApplicationMessage.Topic.Substring(TopicRoot.Length + 1);

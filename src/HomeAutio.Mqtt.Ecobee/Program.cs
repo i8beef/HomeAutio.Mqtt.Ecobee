@@ -35,10 +35,15 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <returns>Awaitable <see cref="Task" />.</returns>
         public static async Task MainAsync(string[] args)
         {
+            var environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT");
+            if (string.IsNullOrEmpty(environmentName))
+                environmentName = "Development";
+
             // Setup config
             var config = new ConfigurationBuilder()
                 .SetBasePath(Environment.CurrentDirectory)
                 .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile($"appsettings.{environmentName}.json", optional: true)
                 .Build();
 
             // Setup logging
@@ -59,6 +64,10 @@ namespace HomeAutio.Mqtt.Ecobee
                 Log.Logger.Fatal(ex, ex.Message);
                 throw;
             }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
         }
 
         /// <summary>
@@ -76,9 +85,8 @@ namespace HomeAutio.Mqtt.Ecobee
                     // Setup client
                     services.AddScoped<Client>(serviceProvider =>
                     {
-                        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
                         return new Client(
-                            configuration.GetValue<string>("ecobeeAppKey"),
+                            config.GetValue<string>("ecobee:ecobeeAppKey"),
                             ReadTokenFileAsync,
                             WriteTokenFileAsync);
                     });
@@ -86,17 +94,20 @@ namespace HomeAutio.Mqtt.Ecobee
                     // Setup service instance
                     services.AddScoped<IHostedService, EcobeeMqttService>(serviceProvider =>
                     {
-                        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+                        var brokerSettings = new Core.BrokerSettings
+                        {
+                            BrokerIp = config.GetValue<string>("mqtt:brokerIp"),
+                            BrokerPort = config.GetValue<int>("mqtt:brokerPort"),
+                            BrokerUsername = config.GetValue<string>("mqtt:brokerUsername"),
+                            BrokerPassword = config.GetValue<string>("mqtt:brokerPassword")
+                        };
+
                         return new EcobeeMqttService(
-                            serviceProvider.GetRequiredService<IApplicationLifetime>(),
                             serviceProvider.GetRequiredService<ILogger<EcobeeMqttService>>(),
                             serviceProvider.GetRequiredService<Client>(),
-                            configuration.GetValue<string>("ecobeeName"),
-                            configuration.GetValue<int>("refreshInterval"),
-                            configuration.GetValue<string>("brokerIp"),
-                            configuration.GetValue<int>("brokerPort"),
-                            configuration.GetValue<string>("brokerUsername"),
-                            configuration.GetValue<string>("brokerPassword"));
+                            config.GetValue<string>("ecobee:ecobeeName"),
+                            config.GetValue<int>("ecobee:refreshInterval"),
+                            brokerSettings);
                     });
                 });
         }
@@ -151,7 +162,7 @@ namespace HomeAutio.Mqtt.Ecobee
         {
             // initialize tokens
             var registrationClient = new Client(
-                config.GetValue<string>("ecobeeAppKey"),
+                config.GetValue<string>("ecobee:ecobeeAppKey"),
                 ReadTokenFileAsync,
                 WriteTokenFileAsync);
 
