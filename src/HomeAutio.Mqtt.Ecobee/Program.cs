@@ -99,7 +99,8 @@ namespace HomeAutio.Mqtt.Ecobee
                             BrokerIp = config.GetValue<string>("mqtt:brokerIp"),
                             BrokerPort = config.GetValue<int>("mqtt:brokerPort"),
                             BrokerUsername = config.GetValue<string>("mqtt:brokerUsername"),
-                            BrokerPassword = config.GetValue<string>("mqtt:brokerPassword")
+                            BrokerPassword = config.GetValue<string>("mqtt:brokerPassword"),
+                            BrokerUseTls = config.GetValue<bool>("mqtt:brokerUseTls", false)
                         };
 
                         return new EcobeeMqttService(
