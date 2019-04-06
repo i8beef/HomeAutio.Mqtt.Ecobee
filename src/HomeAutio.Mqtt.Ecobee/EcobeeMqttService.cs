@@ -262,10 +262,21 @@ namespace HomeAutio.Mqtt.Ecobee
                 {
                     foreach (var sensor in thermostat.RemoteSensors)
                     {
-                        // Convert temperature values to human readable
                         thermostatStatus.Sensors[sensor.Name] = sensor.Capability.ToDictionary(
                             s => s.Type,
-                            s => string.Equals(s.Type, "temperature", System.StringComparison.OrdinalIgnoreCase) ? (decimal.Parse(s.Value) / 10m).ToString() : s.Value);
+                            s =>
+                            {
+                                // Convert temperature values to human readable
+                                if (string.Equals(s.Type, "temperature", System.StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (decimal.TryParse(s.Value, out var decimalValue))
+                                    {
+                                        return (decimalValue / 10m).ToString();
+                                    }
+                                }
+
+                                return s.Value;
+                            });
                     }
                 }
 
