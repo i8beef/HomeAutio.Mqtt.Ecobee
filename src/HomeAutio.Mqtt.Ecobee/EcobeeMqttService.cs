@@ -154,7 +154,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 case "desiredHeat/set":
                     if (int.TryParse(message, out int desiredHeatValue))
                     {
-                        request.Thermostat = new { Runtime = new { DesiredHeat = desiredHeatValue * 100 } };
+                        request.Thermostat = new { Runtime = new { DesiredHeat = desiredHeatValue * 10 } };
                         var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredHeatResponse.Status.Code}) {desiredHeatResponse.Status.Message}");
@@ -164,7 +164,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 case "desiredCool/set":
                     if (int.TryParse(message, out int desiredCoolValue))
                     {
-                        request.Thermostat = new { Runtime = new { DesiredCool = desiredCoolValue * 100 } };
+                        request.Thermostat = new { Runtime = new { DesiredCool = desiredCoolValue * 10 } };
                         var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
@@ -249,10 +249,10 @@ namespace HomeAutio.Mqtt.Ecobee
                 thermostatStatus.Status["dehumidifierMode"] = thermostat.Settings.DehumidifierMode;
                 thermostatStatus.Status["autoAway"] = thermostat.Settings.AutoAway ? "true" : "false";
                 thermostatStatus.Status["vent"] = thermostat.Settings.Vent;
-                thermostatStatus.Status["actualTemperature"] = thermostat.Runtime.ActualTemperature.ToString();
+                thermostatStatus.Status["actualTemperature"] = (thermostat.Runtime.ActualTemperature / 10m).ToString();
                 thermostatStatus.Status["actualHumidity"] = thermostat.Runtime.ActualHumidity.ToString();
-                thermostatStatus.Status["desiredHeat"] = thermostat.Runtime.DesiredHeat.ToString();
-                thermostatStatus.Status["desiredCool"] = thermostat.Runtime.DesiredCool.ToString();
+                thermostatStatus.Status["desiredHeat"] = (thermostat.Runtime.DesiredHeat / 10m).ToString();
+                thermostatStatus.Status["desiredCool"] = (thermostat.Runtime.DesiredCool / 10m).ToString();
                 thermostatStatus.Status["desiredHumidity"] = thermostat.Runtime.DesiredHumidity.ToString();
                 thermostatStatus.Status["desiredDehumidity"] = thermostat.Runtime.DesiredDehumidity.ToString();
                 thermostatStatus.Status["desiredFanMode"] = thermostat.Runtime.DesiredFanMode;
@@ -262,7 +262,10 @@ namespace HomeAutio.Mqtt.Ecobee
                 {
                     foreach (var sensor in thermostat.RemoteSensors)
                     {
-                        thermostatStatus.Sensors[sensor.Name] = sensor.Capability.ToDictionary(s => s.Type, s => s.Value);
+                        // Convert temperature values to human readable
+                        thermostatStatus.Sensors[sensor.Name] = sensor.Capability.ToDictionary(
+                            s => s.Type,
+                            s => string.Equals(s.Type, "temperature", System.StringComparison.OrdinalIgnoreCase) ? (decimal.Parse(s.Value) / 10m).ToString() : s.Value);
                     }
                 }
 
