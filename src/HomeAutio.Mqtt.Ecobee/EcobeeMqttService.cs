@@ -12,6 +12,7 @@ using I8Beef.Ecobee.Protocol.Objects;
 using I8Beef.Ecobee.Protocol.Thermostat;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
+using MQTTnet.Extensions.ManagedClient;
 
 namespace HomeAutio.Mqtt.Ecobee
 {
@@ -23,14 +24,13 @@ namespace HomeAutio.Mqtt.Ecobee
         private readonly ILogger<EcobeeMqttService> _log;
 
         private readonly Client _client;
-        private readonly string _ecobeeName;
 
         private readonly IDictionary<string, RevisionStatus> _revisionStatusCache;
         private readonly IDictionary<string, ThermostatStatus> _thermostatStatus;
+        private readonly int _refreshInterval;
 
         private bool _disposed = false;
         private System.Timers.Timer _refresh;
-        private int _refreshInterval;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EcobeeMqttService"/> class.
@@ -53,7 +53,6 @@ namespace HomeAutio.Mqtt.Ecobee
             SubscribedTopics.Add(TopicRoot + "/+/+/set");
 
             _client = ecobeeClient;
-            _ecobeeName = ecobeeName;
             _revisionStatusCache = new Dictionary<string, RevisionStatus>();
             _thermostatStatus = new Dictionary<string, ThermostatStatus>();
         }
@@ -61,7 +60,7 @@ namespace HomeAutio.Mqtt.Ecobee
         #region Service implementation
 
         /// <inheritdoc />
-        protected override async Task StartServiceAsync(CancellationToken cancellationToken = default(CancellationToken))
+        protected override async Task StartServiceAsync(CancellationToken cancellationToken = default)
         {
             await GetInitialStatusAsync()
                 .ConfigureAwait(false);
@@ -79,7 +78,7 @@ namespace HomeAutio.Mqtt.Ecobee
         }
 
         /// <inheritdoc />
-        protected override Task StopServiceAsync(CancellationToken cancellationToken = default(CancellationToken))
+        protected override Task StopServiceAsync(CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
         }
@@ -91,9 +90,8 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <summary>
         /// Handles commands for the Harmony published to MQTT.
         /// </summary>
-        /// <param name="sender">Event sender.</param>
         /// <param name="e">Event args.</param>
-        protected override async void Mqtt_MqttMsgPublishReceived(object sender, MqttApplicationMessageReceivedEventArgs e)
+        protected override async void Mqtt_MqttMsgPublishReceived(MqttApplicationMessageReceivedEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
             _log.LogInformation("MQTT message received for topic " + e.ApplicationMessage.Topic + ": " + message);

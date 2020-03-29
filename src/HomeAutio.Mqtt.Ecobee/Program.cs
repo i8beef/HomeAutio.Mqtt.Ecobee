@@ -24,18 +24,8 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <summary>
         /// Main program entry point.
         /// </summary>
-        /// <param name="args">Arguments.</param>
-        public static void Main(string[] args)
-        {
-            MainAsync(args).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Main program entry point.
-        /// </summary>
-        /// <param name="args">Arguments.</param>
         /// <returns>Awaitable <see cref="Task" />.</returns>
-        public static async Task MainAsync(string[] args)
+        public static async Task Main()
         {
             var environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT");
             if (string.IsNullOrEmpty(environmentName))
@@ -163,7 +153,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <param name="storedAuthToken">Stored auth token.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>An awaitable <see cref="Task"/>.</returns>
-        private static async Task WriteTokenFileAsync(StoredAuthToken storedAuthToken, CancellationToken cancellationToken = default(CancellationToken))
+        private static async Task WriteTokenFileAsync(StoredAuthToken storedAuthToken, CancellationToken cancellationToken = default)
         {
             // Cache the returned tokens
             _currentAuthToken = storedAuthToken;
@@ -182,7 +172,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The <see cref="StoredAuthToken"/>.</returns>
-        private static async Task<StoredAuthToken> ReadTokenFileAsync(CancellationToken cancellationToken = default(CancellationToken))
+        private static async Task<StoredAuthToken> ReadTokenFileAsync(CancellationToken cancellationToken = default)
         {
             if (_currentAuthToken == null && File.Exists(@"token.txt"))
             {
