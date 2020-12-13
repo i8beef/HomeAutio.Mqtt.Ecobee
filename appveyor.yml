@@ -20,9 +20,9 @@ build_script:
 
     dotnet publish -c Release src/HomeAutio.Mqtt.Ecobee.sln
 artifacts:
-- path: src\HomeAutio.Mqtt.Ecobee\bin\$(configuration)\netcoreapp3.1\publish
+- path: src\HomeAutio.Mqtt.Ecobee\bin\$(configuration)\net5.0\publish
   name: HomeAutio.Mqtt.Ecobee-$(appveyor_build_version)
 deploy:
 - provider: GitHub
   auth_token: $(GITHUB_API_KEY)
-  artifact: src\HomeAutio.Mqtt.Ecobee\bin\$(configuration)\netcoreapp3.1\HomeAutio.Mqtt.Ecobee-$(appveyor_build_version).zip
+  artifact: src\HomeAutio.Mqtt.Ecobee\bin\$(configuration)\net5.0\HomeAutio.Mqtt.Ecobee-$(appveyor_build_version).zip

@@ -164,7 +164,7 @@ namespace HomeAutio.Mqtt.Ecobee
             text.AppendLine(storedAuthToken.AccessToken);
             text.AppendLine(storedAuthToken.RefreshToken);
 
-            await File.WriteAllTextAsync(@"token.txt", text.ToString());
+            await File.WriteAllTextAsync(@"token.txt", text.ToString(), cancellationToken);
         }
 
         /// <summary>
@@ -176,7 +176,7 @@ namespace HomeAutio.Mqtt.Ecobee
         {
             if (_currentAuthToken == null && File.Exists(@"token.txt"))
             {
-                var tokenText = await File.ReadAllLinesAsync(@"token.txt");
+                var tokenText = await File.ReadAllLinesAsync(@"token.txt", cancellationToken);
                 _currentAuthToken = new StoredAuthToken
                 {
                     TokenExpiration = DateTime.Parse(tokenText[0]),
