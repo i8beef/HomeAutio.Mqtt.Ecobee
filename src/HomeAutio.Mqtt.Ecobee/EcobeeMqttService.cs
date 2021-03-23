@@ -14,6 +14,7 @@ using I8Beef.Ecobee.Protocol.Thermostat;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Extensions.ManagedClient;
+using Newtonsoft.Json;
 
 namespace HomeAutio.Mqtt.Ecobee
 {
@@ -105,7 +106,7 @@ namespace HomeAutio.Mqtt.Ecobee
             // ONLY VALID OPTIONS
             // HvacMode (auto, auxHeatOnly, cool, heat, off) - hvacMode/set
             // Fan (on, off, auto) - desiredFanMode/set
-            // SetHold (hold, resume) - hold/set
+            // SetHold ({ hold object }) - hold/set
             // Desired Heat - desiredHeat/set
             // Desired Cool - desiredCool/set
             var request = new ThermostatUpdateRequest
@@ -117,56 +118,105 @@ namespace HomeAutio.Mqtt.Ecobee
 
             switch (thermostatTopic)
             {
-                case "hvacMode/set":
-                    request.Thermostat = new { Settings = new { HvacMode = message } };
-                    var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
-                        .ConfigureAwait(false);
-                    _log.LogInformation($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
+                case "desiredCool/set":
+                    if (int.TryParse(message, out int desiredCoolValue))
+                    {
+                        request.Functions = new List<Function>
+                        {
+                            new SetHoldFunction
+                            {
+                                Params = new SetHoldParams
+                                {
+                                    HoldType = "nextTransition",
+                                    CoolHoldTemp = desiredCoolValue * 10
+                                }
+                            }
+                        };
+                        var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                            .ConfigureAwait(false);
+                        _log.LogInformation($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
+                    }
+
                     break;
                 case "desiredFanMode/set":
-                    request.Thermostat = new { Settings = new { Vent = message } };
-                    var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
-                        .ConfigureAwait(false);
-                    _log.LogInformation($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
-                    break;
-                case "hold/set":
-                    if (message == "hold")
+                    if (message == "auto" || message == "off" || message == "on")
                     {
-                        // TODO: Figure out how to pass both desired heat and cool values at same time
-                        var holdFunc = new SetHoldFunction();
-                        ((SetHoldParams)holdFunc.Params).HoldType = "indefinite";
-                        ((SetHoldParams)holdFunc.Params).CoolHoldTemp = 0;
-                        ((SetHoldParams)holdFunc.Params).HeatHoldTemp = 0;
-                        request.Functions.Add(holdFunc);
-                        ////_client.Post<ThermostatUpdateRequest, Response>(request);
-                    }
-                    else
-                    {
-                        var resumeFunc = new ResumeProgramFunction();
-                        ((ResumeProgramParams)resumeFunc.Params).ResumeAll = true;
-                        request.Functions.Add(resumeFunc);
-                        await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        request.Functions = new List<Function>
+                        {
+                            new SetHoldFunction
+                            {
+                                Params = new SetHoldParams
+                                {
+                                    HoldType = "nextTransition",
+                                    Fan = message
+                                }
+                            }
+                        };
+
+                        var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
+                        _log.LogInformation($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
                     }
 
                     break;
                 case "desiredHeat/set":
                     if (int.TryParse(message, out int desiredHeatValue))
                     {
-                        request.Thermostat = new { Runtime = new { DesiredHeat = desiredHeatValue * 10 } };
+                        request.Functions = new List<Function>
+                        {
+                            new SetHoldFunction
+                            {
+                                Params = new SetHoldParams
+                                {
+                                    HoldType = "nextTransition",
+                                    HeatHoldTemp = desiredHeatValue * 10
+                                }
+                            }
+                        };
+
                         var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredHeatResponse.Status.Code}) {desiredHeatResponse.Status.Message}");
                     }
 
                     break;
-                case "desiredCool/set":
-                    if (int.TryParse(message, out int desiredCoolValue))
+                case "hold/set":
+                    try
                     {
-                        request.Thermostat = new { Runtime = new { DesiredCool = desiredCoolValue * 10 } };
-                        var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        if (message.Contains("resumeProgram"))
+                        {
+                            var resumeFunction = JsonSerializer<ResumeProgramFunction>.Deserialize(message);
+                            request.Functions = new List<Function>
+                            {
+                                resumeFunction
+                            };
+                        }
+                        else
+                        {
+                            var holdFunction = JsonSerializer<SetHoldFunction>.Deserialize(message);
+                            request.Functions = new List<Function>
+                            {
+                                holdFunction
+                            };
+                        }
+
+                        var setHoldResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
-                        _log.LogInformation($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
+                        _log.LogInformation($"{request.Uri} response: ({setHoldResponse.Status.Code}) {setHoldResponse.Status.Message}");
+                    }
+                    catch (JsonException ex)
+                    {
+                        _log.LogWarning(ex, $"Could not deserialize payload: {message}");
+                    }
+
+                    break;
+                case "hvacMode/set":
+                    if (message == "auto" || message == "auxHeatOnly" || message == "cool" || message == "heat" || message == "off")
+                    {
+                        request.Thermostat = new { Settings = new { HvacMode = message } };
+                        var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                            .ConfigureAwait(false);
+                        _log.LogInformation($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
                     }
 
                     break;
