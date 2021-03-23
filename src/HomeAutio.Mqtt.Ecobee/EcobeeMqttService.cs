@@ -533,16 +533,13 @@ namespace HomeAutio.Mqtt.Ecobee
                 // Hold status
                 foreach (var holdStatus in thermostatStatus.ActiveHold)
                 {
-                    if (holdStatus.Value != _thermostatStatus[thermostat.Identifier].ActiveHold[holdStatus.Key])
-                    {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                            .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
-                            .WithPayload(holdStatus.Value)
-                            .WithAtLeastOnceQoS()
-                            .WithRetainFlag()
-                            .Build())
-                            .ConfigureAwait(false);
-                    }
+                    await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
+                        .WithPayload(holdStatus.Value)
+                        .WithAtLeastOnceQoS()
+                        .WithRetainFlag()
+                        .Build())
+                        .ConfigureAwait(false);
                 }
 
                 foreach (var sensor in thermostatStatus.Sensors)
