@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -111,7 +112,8 @@ namespace HomeAutio.Mqtt.Ecobee
             // Desired Cool - desiredCool/set
             var request = new ThermostatUpdateRequest
             {
-                Selection = new Selection {
+                Selection = new Selection
+                {
                     SelectionType = "thermostats",
                     SelectionMatch = thermostatId
                 }
@@ -314,9 +316,10 @@ namespace HomeAutio.Mqtt.Ecobee
                     SelectionType = "thermostats",
                     SelectionMatch = revisionStatus.ThermostatIdentifier,
                     IncludeEquipmentStatus = true,
-                    IncludeSettings = true,
+                    IncludeEvents = true,
                     IncludeRuntime = true,
                     IncludeSensors = true,
+                    IncludeSettings = true,
                     IncludeWeather = true
                 }
             };
@@ -403,6 +406,21 @@ namespace HomeAutio.Mqtt.Ecobee
                 }
             }
 
+            // Hold
+            var holdEvent = thermostat.Events.FirstOrDefault(x => x.Type == "hold");
+            if (holdEvent != null && holdEvent.Running)
+            {
+                thermostatStatus.ActiveHold["running"] = holdEvent.Running.ToString();
+                thermostatStatus.ActiveHold["startTime"] = DateTime.Parse($"{holdEvent.StartDate} {holdEvent.StartTime}").ToString();
+                thermostatStatus.ActiveHold["endTime"] = DateTime.Parse($"{holdEvent.EndDate} {holdEvent.EndTime}").ToString();
+                thermostatStatus.ActiveHold["coldHoldTemp"] = (holdEvent.CoolHoldTemp / 10m).ToString();
+                thermostatStatus.ActiveHold["heatHoldTemp"] = (holdEvent.HeatHoldTemp / 10m).ToString();
+                thermostatStatus.ActiveHold["fan"] = holdEvent.Fan;
+                thermostatStatus.ActiveHold["fanMinOnTime"] = holdEvent.FanMinOnTime.ToString();
+                thermostatStatus.ActiveHold["vent"] = holdEvent.Vent;
+                thermostatStatus.ActiveHold["ventilatorMinOnTime"] = holdEvent.VentilatorMinOnTime.ToString();
+            }
+
             if (_thermostatStatus.ContainsKey(thermostat.Identifier))
             {
                 // Publish updates
@@ -427,6 +445,21 @@ namespace HomeAutio.Mqtt.Ecobee
                         await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
                             .WithPayload(status.Value)
+                            .WithAtLeastOnceQoS()
+                            .WithRetainFlag()
+                            .Build())
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                // Hold status
+                foreach (var holdStatus in thermostatStatus.ActiveHold)
+                {
+                    if (holdStatus.Value != _thermostatStatus[thermostat.Identifier].ActiveHold[holdStatus.Key])
+                    {
+                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
+                            .WithPayload(holdStatus.Value)
                             .WithAtLeastOnceQoS()
                             .WithRetainFlag()
                             .Build())
@@ -495,6 +528,21 @@ namespace HomeAutio.Mqtt.Ecobee
                         .WithRetainFlag()
                         .Build())
                         .ConfigureAwait(false);
+                }
+
+                // Hold status
+                foreach (var holdStatus in thermostatStatus.ActiveHold)
+                {
+                    if (holdStatus.Value != _thermostatStatus[thermostat.Identifier].ActiveHold[holdStatus.Key])
+                    {
+                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
+                            .WithPayload(holdStatus.Value)
+                            .WithAtLeastOnceQoS()
+                            .WithRetainFlag()
+                            .Build())
+                            .ConfigureAwait(false);
+                    }
                 }
 
                 foreach (var sensor in thermostatStatus.Sensors)

@@ -16,6 +16,19 @@ namespace HomeAutio.Mqtt.Ecobee
 
             Status = new Dictionary<string, string>();
 
+            ActiveHold = new Dictionary<string, string>
+            {
+                { "running", "false" },
+                { "startTime", null },
+                { "endTime", null },
+                { "coldHoldTemp", null },
+                { "heatHoldTemp", null },
+                { "fan", null },
+                { "fanMinOnTime", null },
+                { "vent", null },
+                { "ventilatorMinOnTime", null }
+            };
+
             EquipmentStatus = new Dictionary<string, string>
             {
                 { "heatPump", "off" },
@@ -37,6 +50,16 @@ namespace HomeAutio.Mqtt.Ecobee
         }
 
         /// <summary>
+        /// Running event.
+        /// </summary>
+        public IDictionary<string, string> ActiveHold { get; }
+
+        /// <summary>
+        /// Equipment statuses.
+        /// </summary>
+        public IDictionary<string, string> EquipmentStatus { get; }
+
+        /// <summary>
         /// Sensor statuses.
         /// </summary>
         public IDictionary<string, IDictionary<string, string>> Sensors { get; }
@@ -45,10 +68,5 @@ namespace HomeAutio.Mqtt.Ecobee
         /// Thermostat statuses.
         /// </summary>
         public IDictionary<string, string> Status { get; }
-
-        /// <summary>
-        /// Equipment statuses.
-        /// </summary>
-        public IDictionary<string, string> EquipmentStatus { get; }
     }
 }
