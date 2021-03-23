@@ -74,7 +74,7 @@ namespace HomeAutio.Mqtt.Ecobee
             }
 
             _refresh = new System.Timers.Timer();
-            _refresh.Elapsed += RefreshAsync;
+            _refresh.Elapsed += async (sender, e) => await RefreshAsync();
             _refresh.Interval = _refreshInterval;
             _refresh.Start();
         }
@@ -136,6 +136,8 @@ namespace HomeAutio.Mqtt.Ecobee
                         var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
+
+                        await RefreshAsync();
                     }
 
                     break;
@@ -157,11 +159,13 @@ namespace HomeAutio.Mqtt.Ecobee
                         var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
+
+                        await RefreshAsync();
                     }
 
                     break;
                 case "desiredHeat/set":
-                    if (int.TryParse(message, out int desiredHeatValue) && int.TryParse(_thermostatStatus[thermostatId].Status["desiredHeat"], out int currentDesiredCoolValue))
+                    if (int.TryParse(message, out int desiredHeatValue) && int.TryParse(_thermostatStatus[thermostatId].Status["desiredCool"], out int currentDesiredCoolValue))
                     {
                         request.Functions = new List<Function>
                         {
@@ -179,6 +183,8 @@ namespace HomeAutio.Mqtt.Ecobee
                         var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredHeatResponse.Status.Code}) {desiredHeatResponse.Status.Message}");
+
+                        await RefreshAsync();
                     }
 
                     break;
@@ -205,6 +211,8 @@ namespace HomeAutio.Mqtt.Ecobee
                         var setHoldResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({setHoldResponse.Status.Code}) {setHoldResponse.Status.Message}");
+
+                        await RefreshAsync();
                     }
                     catch (JsonException ex)
                     {
@@ -219,6 +227,8 @@ namespace HomeAutio.Mqtt.Ecobee
                         var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
+
+                        await RefreshAsync();
                     }
 
                     break;
@@ -236,9 +246,8 @@ namespace HomeAutio.Mqtt.Ecobee
         /// Heartbeat ping. Failure will result in the heartbeat being stopped, which will
         /// make any future calls throw an exception as the heartbeat indicator will be disabled.
         /// </summary>
-        /// <param name="sender">Event sender.</param>
-        /// <param name="e">Event args.</param>
-        private async void RefreshAsync(object sender, ElapsedEventArgs e)
+        /// <returns>>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        private async Task RefreshAsync()
         {
             // Get current revision status
             var summaryRequest = new ThermostatSummaryRequest { Selection = new Selection { SelectionType = "registered" } };
