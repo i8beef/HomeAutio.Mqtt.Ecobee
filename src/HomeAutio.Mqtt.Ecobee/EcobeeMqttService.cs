@@ -111,7 +111,15 @@ namespace HomeAutio.Mqtt.Ecobee
             // Desired Cool - desiredCool/set
             var request = new ThermostatUpdateRequest
             {
-                Selection = new Selection { SelectionType = "thermostats", SelectionMatch = thermostatId }
+                Selection = new Selection {
+                    SelectionType = "thermostats",
+                    SelectionMatch = thermostatId,
+                    IncludeEquipmentStatus = true,
+                    IncludeSettings = true,
+                    IncludeRuntime = true,
+                    IncludeSensors = true,
+                    IncludeWeather = true
+                }
             };
 
             _log.LogInformation($"Sending request to {request.Uri} with thermostat selection {thermostatId} for action {thermostatTopic}");
@@ -133,11 +141,12 @@ namespace HomeAutio.Mqtt.Ecobee
                                 }
                             }
                         };
-                        var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
 
-                        await RefreshAsync();
+                        // Publish updates and cache new values
+                        await UpdateState(desiredCoolResponse?.ThermostatList?.FirstOrDefault());
                     }
 
                     break;
@@ -156,11 +165,12 @@ namespace HomeAutio.Mqtt.Ecobee
                             }
                         };
 
-                        var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
 
-                        await RefreshAsync();
+                        // Publish updates and cache new values
+                        await UpdateState(desiredFanModeResponse?.ThermostatList?.FirstOrDefault());
                     }
 
                     break;
@@ -180,11 +190,12 @@ namespace HomeAutio.Mqtt.Ecobee
                             }
                         };
 
-                        var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredHeatResponse.Status.Code}) {desiredHeatResponse.Status.Message}");
 
-                        await RefreshAsync();
+                        // Publish updates and cache new values
+                        await UpdateState(desiredHeatResponse?.ThermostatList?.FirstOrDefault());
                     }
 
                     break;
@@ -208,11 +219,12 @@ namespace HomeAutio.Mqtt.Ecobee
                             };
                         }
 
-                        var setHoldResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        var setHoldResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({setHoldResponse.Status.Code}) {setHoldResponse.Status.Message}");
 
-                        await RefreshAsync();
+                        // Publish updates and cache new values
+                        await UpdateState(setHoldResponse?.ThermostatList?.FirstOrDefault());
                     }
                     catch (JsonException ex)
                     {
@@ -224,11 +236,12 @@ namespace HomeAutio.Mqtt.Ecobee
                     if (message == "auto" || message == "auxHeatOnly" || message == "cool" || message == "heat" || message == "off")
                     {
                         request.Thermostat = new { Settings = new { HvacMode = message } };
-                        var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
+                        var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
 
-                        await RefreshAsync();
+                        // Publish updates and cache new values
+                        await UpdateState(hvacModeResponse?.ThermostatList?.FirstOrDefault());
                     }
 
                     break;
@@ -260,215 +273,11 @@ namespace HomeAutio.Mqtt.Ecobee
                 if (_revisionStatusCache[revisionStatus.ThermostatIdentifier].ThermostatRevision != revisionStatus.ThermostatRevision ||
                     _revisionStatusCache[revisionStatus.ThermostatIdentifier].RuntimeRevision != revisionStatus.RuntimeRevision)
                 {
-                    RefreshThermostatAsync(revisionStatus);
+                    await RefreshThermostatAsync(revisionStatus);
                 }
 
                 // Cache last run values
                 _revisionStatusCache[revisionStatus.ThermostatIdentifier] = revisionStatus;
-            }
-        }
-
-        /// <summary>
-        /// Handles updating status for a thermostat and publishing changes.
-        /// </summary>
-        /// <param name="revisionStatus">Revision status that triggered the update.</param>
-        private async void RefreshThermostatAsync(RevisionStatus revisionStatus)
-        {
-            // Build single thermostat request
-            var thermostatRequest = new ThermostatRequest
-            {
-                Selection = new Selection
-                {
-                    SelectionType = "thermostats",
-                    SelectionMatch = revisionStatus.ThermostatIdentifier,
-                    IncludeEquipmentStatus = true,
-                    IncludeSettings = true,
-                    IncludeRuntime = true,
-                    IncludeSensors = true,
-                    IncludeWeather = true
-                }
-            };
-
-            var thermostatUpdate = await _client.GetAsync<ThermostatRequest, ThermostatResponse>(thermostatRequest)
-                .ConfigureAwait(false);
-
-            // Publish updates and cache new values
-            var thermostat = thermostatUpdate.ThermostatList.FirstOrDefault();
-            if (thermostat != null)
-            {
-                var thermostatStatus = new ThermostatStatus();
-
-                // Equipment status
-                foreach (var device in thermostat.EquipmentStatus.Split(',').Where(x => !string.IsNullOrEmpty(x)))
-                {
-                    thermostatStatus.EquipmentStatus[device] = "on";
-                }
-
-                // Status
-                thermostatStatus.Status["hvacMode"] = thermostat.Settings.HvacMode;
-                thermostatStatus.Status["humidifierMode"] = thermostat.Settings.HumidifierMode;
-                thermostatStatus.Status["dehumidifierMode"] = thermostat.Settings.DehumidifierMode;
-                thermostatStatus.Status["autoAway"] = thermostat.Settings.AutoAway ? "true" : "false";
-                thermostatStatus.Status["vent"] = thermostat.Settings.Vent;
-                thermostatStatus.Status["actualTemperature"] = (thermostat.Runtime.ActualTemperature / 10m).ToString();
-                thermostatStatus.Status["actualHumidity"] = thermostat.Runtime.ActualHumidity.ToString();
-                thermostatStatus.Status["desiredHeat"] = (thermostat.Runtime.DesiredHeat / 10m).ToString();
-                thermostatStatus.Status["desiredCool"] = (thermostat.Runtime.DesiredCool / 10m).ToString();
-                thermostatStatus.Status["desiredHumidity"] = thermostat.Runtime.DesiredHumidity.ToString();
-                thermostatStatus.Status["desiredDehumidity"] = thermostat.Runtime.DesiredDehumidity.ToString();
-                thermostatStatus.Status["desiredFanMode"] = thermostat.Runtime.DesiredFanMode;
-
-                // Weather forcasts
-                var forecast = thermostat.Weather.Forecasts?.FirstOrDefault();
-                if (forecast != null)
-                {
-                    thermostatStatus.Status["weatherDewPoint"] = (forecast.Dewpoint / 10m).ToString();
-                    thermostatStatus.Status["weatherPrecipitationChance"] = forecast.Pop.ToString();
-                    thermostatStatus.Status["weatherPressure"] = (forecast.Pressure / 100m).ToString();
-                    thermostatStatus.Status["weatherRelativeHumidity"] = forecast.RelativeHumidity.ToString();
-                    thermostatStatus.Status["weatherTemperature"] = (forecast.Temperature / 10m).ToString();
-                    thermostatStatus.Status["weatherTempLow"] = (forecast.TempLow / 10m).ToString();
-                    thermostatStatus.Status["weatherTempHigh"] = (forecast.TempHigh / 10m).ToString();
-                    thermostatStatus.Status["weatherVisibility"] = forecast.Visibility.ToString();
-                    thermostatStatus.Status["weatherWindBearing"] = forecast.WindBearing.ToString();
-                    thermostatStatus.Status["weatherWindDirection"] = forecast.WindDirection.ToString();
-                    thermostatStatus.Status["weatherWindGust"] = forecast.WindGust.ToString();
-                    thermostatStatus.Status["weatherWindSpeed"] = forecast.WindSpeed.ToString();
-                }
-
-                // Sensors
-                if (thermostat.RemoteSensors != null && thermostat.RemoteSensors.Count > 0)
-                {
-                    foreach (var sensor in thermostat.RemoteSensors)
-                    {
-                        thermostatStatus.Sensors[sensor.Name] = sensor.Capability.ToDictionary(
-                            s => s.Type,
-                            s =>
-                            {
-                                // Convert temperature values to human readable
-                                if (string.Equals(s.Type, "temperature", System.StringComparison.OrdinalIgnoreCase))
-                                {
-                                    if (decimal.TryParse(s.Value, out var decimalValue))
-                                    {
-                                        return (decimalValue / 10m).ToString();
-                                    }
-                                }
-
-                                return s.Value;
-                            });
-                    }
-                }
-
-                if (_thermostatStatus.ContainsKey(revisionStatus.ThermostatIdentifier))
-                {
-                    // Publish updates
-                    foreach (var device in thermostatStatus.EquipmentStatus)
-                    {
-                        if (device.Value != _thermostatStatus[revisionStatus.ThermostatIdentifier].EquipmentStatus[device.Key])
-                        {
-                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                                .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/{device.Key}")
-                                .WithPayload(device.Value.ToString())
-                                .WithAtLeastOnceQoS()
-                                .WithRetainFlag()
-                                .Build())
-                                .ConfigureAwait(false);
-                        }
-                    }
-
-                    foreach (var status in thermostatStatus.Status)
-                    {
-                        if (status.Value != _thermostatStatus[revisionStatus.ThermostatIdentifier].Status[status.Key])
-                        {
-                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                                .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/{status.Key}")
-                                .WithPayload(status.Value)
-                                .WithAtLeastOnceQoS()
-                                .WithRetainFlag()
-                                .Build())
-                                .ConfigureAwait(false);
-                        }
-                    }
-
-                    // Publish everything for new sensors, new capabilities, and changes in existing ability values
-                    foreach (var sensor in thermostatStatus.Sensors)
-                    {
-                        foreach (var sensorCapability in sensor.Value)
-                        {
-                            if (!_thermostatStatus[revisionStatus.ThermostatIdentifier].Sensors.ContainsKey(sensor.Key))
-                            {
-                                await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                                    .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
-                                    .WithPayload(sensorCapability.Value)
-                                    .WithAtLeastOnceQoS()
-                                    .WithRetainFlag()
-                                    .Build())
-                                    .ConfigureAwait(false);
-                            }
-                            else if (!_thermostatStatus[revisionStatus.ThermostatIdentifier].Sensors[sensor.Key].ContainsKey(sensorCapability.Key))
-                            {
-                                await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                                    .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
-                                    .WithPayload(sensorCapability.Value)
-                                    .WithAtLeastOnceQoS()
-                                    .WithRetainFlag()
-                                    .Build())
-                                    .ConfigureAwait(false);
-                            }
-                            else if (sensorCapability.Value != _thermostatStatus[revisionStatus.ThermostatIdentifier].Sensors[sensor.Key][sensorCapability.Key])
-                            {
-                                await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                                    .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
-                                    .WithPayload(sensorCapability.Value)
-                                    .WithAtLeastOnceQoS()
-                                    .WithRetainFlag()
-                                    .Build())
-                                    .ConfigureAwait(false);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Publish initial state
-                    foreach (var device in thermostatStatus.EquipmentStatus)
-                    {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                            .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/{device.Key}")
-                            .WithPayload(device.Value.ToString())
-                            .WithAtLeastOnceQoS()
-                            .WithRetainFlag()
-                            .Build())
-                            .ConfigureAwait(false);
-                    }
-
-                    foreach (var status in thermostatStatus.Status)
-                    {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                            .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/{status.Key}")
-                            .WithPayload(status.Value)
-                            .WithAtLeastOnceQoS()
-                            .WithRetainFlag()
-                            .Build())
-                            .ConfigureAwait(false);
-                    }
-
-                    foreach (var sensor in thermostatStatus.Sensors)
-                    {
-                        foreach (var sensorCapability in sensor.Value)
-                        {
-                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
-                                .WithTopic($"{TopicRoot}/{revisionStatus.ThermostatIdentifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
-                                .WithPayload(sensorCapability.Value)
-                                .WithAtLeastOnceQoS()
-                                .WithRetainFlag()
-                                .Build())
-                                .ConfigureAwait(false);
-                        }
-                    }
-                }
-
-                _thermostatStatus[revisionStatus.ThermostatIdentifier] = thermostatStatus;
             }
         }
 
@@ -490,9 +299,225 @@ namespace HomeAutio.Mqtt.Ecobee
                 _log.LogInformation($"Got revision: {revision}");
                 var revisionStatus = new RevisionStatus(revision);
 
-                RefreshThermostatAsync(revisionStatus);
+                await RefreshThermostatAsync(revisionStatus);
                 _revisionStatusCache.Add(revisionStatus.ThermostatIdentifier, revisionStatus);
             }
+        }
+
+        /// <summary>
+        /// Handles updating status for a thermostat and publishing changes.
+        /// </summary>
+        /// <param name="revisionStatus">Revision status that triggered the update.</param>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        private async Task RefreshThermostatAsync(RevisionStatus revisionStatus)
+        {
+            // Build single thermostat request
+            var thermostatRequest = new ThermostatRequest
+            {
+                Selection = new Selection
+                {
+                    SelectionType = "thermostats",
+                    SelectionMatch = revisionStatus.ThermostatIdentifier,
+                    IncludeEquipmentStatus = true,
+                    IncludeSettings = true,
+                    IncludeRuntime = true,
+                    IncludeSensors = true,
+                    IncludeWeather = true
+                }
+            };
+
+            var thermostatUpdate = await _client.GetAsync<ThermostatRequest, ThermostatResponse>(thermostatRequest)
+                .ConfigureAwait(false);
+
+            // Publish updates and cache new values
+            await UpdateState(thermostatUpdate?.ThermostatList?.FirstOrDefault());
+        }
+
+        /// <summary>
+        /// Update state and publish new statuses.
+        /// </summary>
+        /// <param name="thermostat">Thermostat status.</param>
+        /// <returns>>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        private async Task UpdateState(Thermostat thermostat)
+        {
+            if (thermostat == null)
+            {
+                return;
+            }
+
+            var thermostatStatus = new ThermostatStatus();
+
+            // Equipment status
+            foreach (var device in thermostat.EquipmentStatus.Split(',').Where(x => !string.IsNullOrEmpty(x)))
+            {
+                thermostatStatus.EquipmentStatus[device] = "on";
+            }
+
+            // Status
+            thermostatStatus.Status["hvacMode"] = thermostat.Settings.HvacMode;
+            thermostatStatus.Status["humidifierMode"] = thermostat.Settings.HumidifierMode;
+            thermostatStatus.Status["dehumidifierMode"] = thermostat.Settings.DehumidifierMode;
+            thermostatStatus.Status["autoAway"] = thermostat.Settings.AutoAway ? "true" : "false";
+            thermostatStatus.Status["vent"] = thermostat.Settings.Vent;
+            thermostatStatus.Status["actualTemperature"] = (thermostat.Runtime.ActualTemperature / 10m).ToString();
+            thermostatStatus.Status["actualHumidity"] = thermostat.Runtime.ActualHumidity.ToString();
+            thermostatStatus.Status["desiredHeat"] = (thermostat.Runtime.DesiredHeat / 10m).ToString();
+            thermostatStatus.Status["desiredCool"] = (thermostat.Runtime.DesiredCool / 10m).ToString();
+            thermostatStatus.Status["desiredHumidity"] = thermostat.Runtime.DesiredHumidity.ToString();
+            thermostatStatus.Status["desiredDehumidity"] = thermostat.Runtime.DesiredDehumidity.ToString();
+            thermostatStatus.Status["desiredFanMode"] = thermostat.Runtime.DesiredFanMode;
+
+            // Weather forcasts
+            var forecast = thermostat.Weather.Forecasts?.FirstOrDefault();
+            if (forecast != null)
+            {
+                thermostatStatus.Status["weatherDewPoint"] = (forecast.Dewpoint / 10m).ToString();
+                thermostatStatus.Status["weatherPrecipitationChance"] = forecast.Pop.ToString();
+                thermostatStatus.Status["weatherPressure"] = (forecast.Pressure / 100m).ToString();
+                thermostatStatus.Status["weatherRelativeHumidity"] = forecast.RelativeHumidity.ToString();
+                thermostatStatus.Status["weatherTemperature"] = (forecast.Temperature / 10m).ToString();
+                thermostatStatus.Status["weatherTempLow"] = (forecast.TempLow / 10m).ToString();
+                thermostatStatus.Status["weatherTempHigh"] = (forecast.TempHigh / 10m).ToString();
+                thermostatStatus.Status["weatherVisibility"] = forecast.Visibility.ToString();
+                thermostatStatus.Status["weatherWindBearing"] = forecast.WindBearing.ToString();
+                thermostatStatus.Status["weatherWindDirection"] = forecast.WindDirection.ToString();
+                thermostatStatus.Status["weatherWindGust"] = forecast.WindGust.ToString();
+                thermostatStatus.Status["weatherWindSpeed"] = forecast.WindSpeed.ToString();
+            }
+
+            // Sensors
+            if (thermostat.RemoteSensors != null && thermostat.RemoteSensors.Count > 0)
+            {
+                foreach (var sensor in thermostat.RemoteSensors)
+                {
+                    thermostatStatus.Sensors[sensor.Name] = sensor.Capability.ToDictionary(
+                        s => s.Type,
+                        s =>
+                        {
+                            // Convert temperature values to human readable
+                            if (string.Equals(s.Type, "temperature", System.StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (decimal.TryParse(s.Value, out var decimalValue))
+                                {
+                                    return (decimalValue / 10m).ToString();
+                                }
+                            }
+
+                            return s.Value;
+                        });
+                }
+            }
+
+            if (_thermostatStatus.ContainsKey(thermostat.Identifier))
+            {
+                // Publish updates
+                foreach (var device in thermostatStatus.EquipmentStatus)
+                {
+                    if (device.Value != _thermostatStatus[thermostat.Identifier].EquipmentStatus[device.Key])
+                    {
+                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{device.Key}")
+                            .WithPayload(device.Value.ToString())
+                            .WithAtLeastOnceQoS()
+                            .WithRetainFlag()
+                            .Build())
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                foreach (var status in thermostatStatus.Status)
+                {
+                    if (status.Value != _thermostatStatus[thermostat.Identifier].Status[status.Key])
+                    {
+                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
+                            .WithPayload(status.Value)
+                            .WithAtLeastOnceQoS()
+                            .WithRetainFlag()
+                            .Build())
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                // Publish everything for new sensors, new capabilities, and changes in existing ability values
+                foreach (var sensor in thermostatStatus.Sensors)
+                {
+                    foreach (var sensorCapability in sensor.Value)
+                    {
+                        if (!_thermostatStatus[thermostat.Identifier].Sensors.ContainsKey(sensor.Key))
+                        {
+                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                                .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
+                                .WithPayload(sensorCapability.Value)
+                                .WithAtLeastOnceQoS()
+                                .WithRetainFlag()
+                                .Build())
+                                .ConfigureAwait(false);
+                        }
+                        else if (!_thermostatStatus[thermostat.Identifier].Sensors[sensor.Key].ContainsKey(sensorCapability.Key))
+                        {
+                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                                .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
+                                .WithPayload(sensorCapability.Value)
+                                .WithAtLeastOnceQoS()
+                                .WithRetainFlag()
+                                .Build())
+                                .ConfigureAwait(false);
+                        }
+                        else if (sensorCapability.Value != _thermostatStatus[thermostat.Identifier].Sensors[sensor.Key][sensorCapability.Key])
+                        {
+                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                                .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
+                                .WithPayload(sensorCapability.Value)
+                                .WithAtLeastOnceQoS()
+                                .WithRetainFlag()
+                                .Build())
+                                .ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Publish initial state
+                foreach (var device in thermostatStatus.EquipmentStatus)
+                {
+                    await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{device.Key}")
+                        .WithPayload(device.Value.ToString())
+                        .WithAtLeastOnceQoS()
+                        .WithRetainFlag()
+                        .Build())
+                        .ConfigureAwait(false);
+                }
+
+                foreach (var status in thermostatStatus.Status)
+                {
+                    await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
+                        .WithPayload(status.Value)
+                        .WithAtLeastOnceQoS()
+                        .WithRetainFlag()
+                        .Build())
+                        .ConfigureAwait(false);
+                }
+
+                foreach (var sensor in thermostatStatus.Sensors)
+                {
+                    foreach (var sensorCapability in sensor.Value)
+                    {
+                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
+                            .WithPayload(sensorCapability.Value)
+                            .WithAtLeastOnceQoS()
+                            .WithRetainFlag()
+                            .Build())
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+
+            _thermostatStatus[thermostat.Identifier] = thermostatStatus;
         }
 
         #endregion
