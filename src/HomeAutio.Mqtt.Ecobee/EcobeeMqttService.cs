@@ -119,7 +119,7 @@ namespace HomeAutio.Mqtt.Ecobee
             switch (thermostatTopic)
             {
                 case "desiredCool/set":
-                    if (int.TryParse(message, out int desiredCoolValue))
+                    if (int.TryParse(message, out int desiredCoolValue) && int.TryParse(_thermostatStatus[thermostatId].Status["desiredHeat"], out int currentDesiredHeatValue))
                     {
                         request.Functions = new List<Function>
                         {
@@ -128,7 +128,8 @@ namespace HomeAutio.Mqtt.Ecobee
                                 Params = new SetHoldParams
                                 {
                                     HoldType = "nextTransition",
-                                    CoolHoldTemp = desiredCoolValue * 10
+                                    CoolHoldTemp = desiredCoolValue * 10,
+                                    HeatHoldTemp = currentDesiredHeatValue * 10
                                 }
                             }
                         };
@@ -160,7 +161,7 @@ namespace HomeAutio.Mqtt.Ecobee
 
                     break;
                 case "desiredHeat/set":
-                    if (int.TryParse(message, out int desiredHeatValue))
+                    if (int.TryParse(message, out int desiredHeatValue) && int.TryParse(_thermostatStatus[thermostatId].Status["desiredHeat"], out int currentDesiredCoolValue))
                     {
                         request.Functions = new List<Function>
                         {
@@ -169,6 +170,7 @@ namespace HomeAutio.Mqtt.Ecobee
                                 Params = new SetHoldParams
                                 {
                                     HoldType = "nextTransition",
+                                    CoolHoldTemp = currentDesiredCoolValue * 10,
                                     HeatHoldTemp = desiredHeatValue * 10
                                 }
                             }
