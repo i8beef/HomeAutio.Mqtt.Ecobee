@@ -113,12 +113,7 @@ namespace HomeAutio.Mqtt.Ecobee
             {
                 Selection = new Selection {
                     SelectionType = "thermostats",
-                    SelectionMatch = thermostatId,
-                    IncludeEquipmentStatus = true,
-                    IncludeSettings = true,
-                    IncludeRuntime = true,
-                    IncludeSensors = true,
-                    IncludeWeather = true
+                    SelectionMatch = thermostatId
                 }
             };
 
@@ -141,12 +136,12 @@ namespace HomeAutio.Mqtt.Ecobee
                                 }
                             }
                         };
-                        var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
+                        var desiredCoolResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredCoolResponse.Status.Code}) {desiredCoolResponse.Status.Message}");
 
                         // Publish updates and cache new values
-                        await UpdateState(desiredCoolResponse?.ThermostatList?.FirstOrDefault());
+                        await GetInitialStatusAsync();
                     }
 
                     break;
@@ -165,12 +160,12 @@ namespace HomeAutio.Mqtt.Ecobee
                             }
                         };
 
-                        var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
+                        var desiredFanModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredFanModeResponse.Status.Code}) {desiredFanModeResponse.Status.Message}");
 
                         // Publish updates and cache new values
-                        await UpdateState(desiredFanModeResponse?.ThermostatList?.FirstOrDefault());
+                        await GetInitialStatusAsync();
                     }
 
                     break;
@@ -190,12 +185,12 @@ namespace HomeAutio.Mqtt.Ecobee
                             }
                         };
 
-                        var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
+                        var desiredHeatResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({desiredHeatResponse.Status.Code}) {desiredHeatResponse.Status.Message}");
 
                         // Publish updates and cache new values
-                        await UpdateState(desiredHeatResponse?.ThermostatList?.FirstOrDefault());
+                        await GetInitialStatusAsync();
                     }
 
                     break;
@@ -219,12 +214,12 @@ namespace HomeAutio.Mqtt.Ecobee
                             };
                         }
 
-                        var setHoldResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
+                        var setHoldResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({setHoldResponse.Status.Code}) {setHoldResponse.Status.Message}");
 
                         // Publish updates and cache new values
-                        await UpdateState(setHoldResponse?.ThermostatList?.FirstOrDefault());
+                        await GetInitialStatusAsync();
                     }
                     catch (JsonException ex)
                     {
@@ -236,12 +231,12 @@ namespace HomeAutio.Mqtt.Ecobee
                     if (message == "auto" || message == "auxHeatOnly" || message == "cool" || message == "heat" || message == "off")
                     {
                         request.Thermostat = new { Settings = new { HvacMode = message } };
-                        var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, ThermostatResponse>(request)
+                        var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
                             .ConfigureAwait(false);
                         _log.LogInformation($"{request.Uri} response: ({hvacModeResponse.Status.Code}) {hvacModeResponse.Status.Message}");
 
                         // Publish updates and cache new values
-                        await UpdateState(hvacModeResponse?.ThermostatList?.FirstOrDefault());
+                        await GetInitialStatusAsync();
                     }
 
                     break;
