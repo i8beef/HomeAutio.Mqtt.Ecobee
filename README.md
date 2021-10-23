@@ -1,4 +1,5 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/xa6ipb6p32896lio/branch/master?svg=true)](https://ci.appveyor.com/project/i8beef/homeautio-mqtt-ecobee/branch/master)
+![Build](https://github.com/i8beef/HomeAutio.Mqtt.Ecobee/actions/workflows/build.yml/badge.svg?branch=master)
+![Release](https://github.com/i8beef/HomeAutio.Mqtt.Ecobee/actions/workflows/release.yml/badge.svg)
 
 # HomeAutio.Mqtt.Ecobee
 HomeAutio Ecobee MQTT Bridge
