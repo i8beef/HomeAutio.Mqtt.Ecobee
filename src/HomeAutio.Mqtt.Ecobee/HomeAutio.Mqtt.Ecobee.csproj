@@ -33,8 +33,8 @@
     <PackageReference Include="I8Beef.CodeAnalysis.RuleSet" Version="1.0.15">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="HomeAutio.Mqtt.Core" Version="3.0.0.65" />
-    <PackageReference Include="I8Beef.Ecobee" Version="2.2.0.72" />
+    <PackageReference Include="HomeAutio.Mqtt.Core" Version="3.0.0.67" />
+    <PackageReference Include="I8Beef.Ecobee" Version="3.0.0.83" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="3.0.1" />

@@ -355,32 +355,32 @@ namespace HomeAutio.Mqtt.Ecobee
             thermostatStatus.Status["hvacMode"] = thermostat.Settings.HvacMode;
             thermostatStatus.Status["humidifierMode"] = thermostat.Settings.HumidifierMode;
             thermostatStatus.Status["dehumidifierMode"] = thermostat.Settings.DehumidifierMode;
-            thermostatStatus.Status["autoAway"] = thermostat.Settings.AutoAway ? "true" : "false";
+            thermostatStatus.Status["autoAway"] = thermostat.Settings.AutoAway.HasValue && thermostat.Settings.AutoAway.Value ? "true" : "false";
             thermostatStatus.Status["vent"] = thermostat.Settings.Vent;
-            thermostatStatus.Status["actualTemperature"] = (thermostat.Runtime.ActualTemperature / 10m).ToString();
-            thermostatStatus.Status["actualHumidity"] = thermostat.Runtime.ActualHumidity.ToString();
-            thermostatStatus.Status["desiredHeat"] = (thermostat.Runtime.DesiredHeat / 10m).ToString();
-            thermostatStatus.Status["desiredCool"] = (thermostat.Runtime.DesiredCool / 10m).ToString();
-            thermostatStatus.Status["desiredHumidity"] = thermostat.Runtime.DesiredHumidity.ToString();
-            thermostatStatus.Status["desiredDehumidity"] = thermostat.Runtime.DesiredDehumidity.ToString();
+            thermostatStatus.Status["actualTemperature"] = thermostat.Runtime.ActualTemperature.HasValue ? (thermostat.Runtime.ActualTemperature.Value / 10m).ToString() : null;
+            thermostatStatus.Status["actualHumidity"] = thermostat.Runtime.ActualHumidity.HasValue ? thermostat.Runtime.ActualHumidity.Value.ToString() : null;
+            thermostatStatus.Status["desiredHeat"] = thermostat.Runtime.DesiredHeat.HasValue ? (thermostat.Runtime.DesiredHeat.Value / 10m).ToString() : null;
+            thermostatStatus.Status["desiredCool"] = thermostat.Runtime.DesiredCool.HasValue ? (thermostat.Runtime.DesiredCool.Value / 10m).ToString() : null;
+            thermostatStatus.Status["desiredHumidity"] = thermostat.Runtime.DesiredHumidity.HasValue ? thermostat.Runtime.DesiredHumidity.Value.ToString() : null;
+            thermostatStatus.Status["desiredDehumidity"] = thermostat.Runtime.DesiredDehumidity.HasValue ? thermostat.Runtime.DesiredDehumidity.Value.ToString() : null;
             thermostatStatus.Status["desiredFanMode"] = thermostat.Runtime.DesiredFanMode;
 
             // Weather forcasts
             var forecast = thermostat.Weather.Forecasts?.FirstOrDefault();
             if (forecast != null)
             {
-                thermostatStatus.Status["weatherDewPoint"] = (forecast.Dewpoint / 10m).ToString();
-                thermostatStatus.Status["weatherPrecipitationChance"] = forecast.Pop.ToString();
-                thermostatStatus.Status["weatherPressure"] = (forecast.Pressure / 100m).ToString();
-                thermostatStatus.Status["weatherRelativeHumidity"] = forecast.RelativeHumidity.ToString();
-                thermostatStatus.Status["weatherTemperature"] = (forecast.Temperature / 10m).ToString();
-                thermostatStatus.Status["weatherTempLow"] = (forecast.TempLow / 10m).ToString();
-                thermostatStatus.Status["weatherTempHigh"] = (forecast.TempHigh / 10m).ToString();
-                thermostatStatus.Status["weatherVisibility"] = forecast.Visibility.ToString();
-                thermostatStatus.Status["weatherWindBearing"] = forecast.WindBearing.ToString();
-                thermostatStatus.Status["weatherWindDirection"] = forecast.WindDirection.ToString();
-                thermostatStatus.Status["weatherWindGust"] = forecast.WindGust.ToString();
-                thermostatStatus.Status["weatherWindSpeed"] = forecast.WindSpeed.ToString();
+                thermostatStatus.Status["weatherDewPoint"] = forecast.Dewpoint.HasValue ? (forecast.Dewpoint.Value / 10m).ToString() : null;
+                thermostatStatus.Status["weatherPrecipitationChance"] = forecast.Pop.HasValue ? forecast.Pop.Value.ToString() : null;
+                thermostatStatus.Status["weatherPressure"] = forecast.Pressure.HasValue ? (forecast.Pressure.Value / 100m).ToString() : null;
+                thermostatStatus.Status["weatherRelativeHumidity"] = forecast.RelativeHumidity.HasValue ? forecast.RelativeHumidity.Value.ToString() : null;
+                thermostatStatus.Status["weatherTemperature"] = forecast.Temperature.HasValue ? (forecast.Temperature.Value / 10m).ToString() : null;
+                thermostatStatus.Status["weatherTempLow"] = forecast.TempLow.HasValue ? (forecast.TempLow.Value / 10m).ToString() : null;
+                thermostatStatus.Status["weatherTempHigh"] = forecast.TempHigh.HasValue ? (forecast.TempHigh.Value / 10m).ToString() : null;
+                thermostatStatus.Status["weatherVisibility"] = forecast.Visibility.HasValue ? forecast.Visibility.Value.ToString() : null;
+                thermostatStatus.Status["weatherWindBearing"] = forecast.WindBearing.HasValue ? forecast.WindBearing.Value.ToString() : null;
+                thermostatStatus.Status["weatherWindDirection"] = forecast.WindDirection;
+                thermostatStatus.Status["weatherWindGust"] = forecast.WindGust.HasValue ? forecast.WindGust.Value.ToString() : null;
+                thermostatStatus.Status["weatherWindSpeed"] = forecast.WindSpeed.HasValue ? forecast.WindSpeed.Value.ToString() : null;
             }
 
             // Sensors
@@ -408,17 +408,17 @@ namespace HomeAutio.Mqtt.Ecobee
 
             // Hold
             var holdEvent = thermostat.Events.FirstOrDefault(x => x.Type == "hold");
-            if (holdEvent != null && holdEvent.Running)
+            if (holdEvent != null && holdEvent.Running.HasValue && holdEvent.Running.Value)
             {
-                thermostatStatus.ActiveHold["running"] = holdEvent.Running.ToString();
-                thermostatStatus.ActiveHold["startTime"] = DateTime.Parse($"{holdEvent.StartDate} {holdEvent.StartTime}").ToString();
-                thermostatStatus.ActiveHold["endTime"] = DateTime.Parse($"{holdEvent.EndDate} {holdEvent.EndTime}").ToString();
-                thermostatStatus.ActiveHold["coldHoldTemp"] = (holdEvent.CoolHoldTemp / 10m).ToString();
-                thermostatStatus.ActiveHold["heatHoldTemp"] = (holdEvent.HeatHoldTemp / 10m).ToString();
+                thermostatStatus.ActiveHold["running"] = holdEvent.Running.HasValue && holdEvent.Running.Value ? "true" : "false";
+                thermostatStatus.ActiveHold["startTime"] = DateTime.TryParse($"{holdEvent.StartDate} {holdEvent.StartTime}", out var startTimeResult) ? startTimeResult.ToString() : null;
+                thermostatStatus.ActiveHold["endTime"] = DateTime.TryParse($"{holdEvent.EndDate} {holdEvent.EndTime}", out var endTimeResult) ? endTimeResult.ToString() : null;
+                thermostatStatus.ActiveHold["coldHoldTemp"] = holdEvent.CoolHoldTemp.HasValue ? (holdEvent.CoolHoldTemp.Value / 10m).ToString() : null;
+                thermostatStatus.ActiveHold["heatHoldTemp"] = holdEvent.HeatHoldTemp.HasValue ? (holdEvent.HeatHoldTemp.Value / 10m).ToString() : null;
                 thermostatStatus.ActiveHold["fan"] = holdEvent.Fan;
-                thermostatStatus.ActiveHold["fanMinOnTime"] = holdEvent.FanMinOnTime.ToString();
+                thermostatStatus.ActiveHold["fanMinOnTime"] = holdEvent.FanMinOnTime.HasValue ? holdEvent.FanMinOnTime.Value.ToString() : null;
                 thermostatStatus.ActiveHold["vent"] = holdEvent.Vent;
-                thermostatStatus.ActiveHold["ventilatorMinOnTime"] = holdEvent.VentilatorMinOnTime.ToString();
+                thermostatStatus.ActiveHold["ventilatorMinOnTime"] = holdEvent.VentilatorMinOnTime.HasValue ? holdEvent.VentilatorMinOnTime.Value.ToString() : null;
             }
 
             if (_thermostatStatus.ContainsKey(thermostat.Identifier))
@@ -426,11 +426,12 @@ namespace HomeAutio.Mqtt.Ecobee
                 // Publish updates
                 foreach (var device in thermostatStatus.EquipmentStatus)
                 {
-                    if (device.Value != _thermostatStatus[thermostat.Identifier].EquipmentStatus[device.Key])
+                    if (device.Value != _thermostatStatus[thermostat.Identifier].EquipmentStatus[device.Key] &&
+                        device.Value != null)
                     {
                         await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{device.Key}")
-                            .WithPayload(device.Value.ToString())
+                            .WithPayload(device.Value)
                             .WithAtLeastOnceQoS()
                             .WithRetainFlag()
                             .Build())
@@ -440,7 +441,8 @@ namespace HomeAutio.Mqtt.Ecobee
 
                 foreach (var status in thermostatStatus.Status)
                 {
-                    if (status.Value != _thermostatStatus[thermostat.Identifier].Status[status.Key])
+                    if (status.Value != _thermostatStatus[thermostat.Identifier].Status[status.Key] &&
+                        status.Value != null)
                     {
                         await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
@@ -455,7 +457,8 @@ namespace HomeAutio.Mqtt.Ecobee
                 // Hold status
                 foreach (var holdStatus in thermostatStatus.ActiveHold)
                 {
-                    if (holdStatus.Value != _thermostatStatus[thermostat.Identifier].ActiveHold[holdStatus.Key])
+                    if (holdStatus.Value != _thermostatStatus[thermostat.Identifier].ActiveHold[holdStatus.Key] &&
+                        holdStatus.Value != null)
                     {
                         await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
@@ -472,7 +475,8 @@ namespace HomeAutio.Mqtt.Ecobee
                 {
                     foreach (var sensorCapability in sensor.Value)
                     {
-                        if (!_thermostatStatus[thermostat.Identifier].Sensors.ContainsKey(sensor.Key))
+                        if (!_thermostatStatus[thermostat.Identifier].Sensors.ContainsKey(sensor.Key) &&
+                            sensorCapability.Value != null)
                         {
                             await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                                 .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
@@ -482,7 +486,8 @@ namespace HomeAutio.Mqtt.Ecobee
                                 .Build())
                                 .ConfigureAwait(false);
                         }
-                        else if (!_thermostatStatus[thermostat.Identifier].Sensors[sensor.Key].ContainsKey(sensorCapability.Key))
+                        else if (!_thermostatStatus[thermostat.Identifier].Sensors[sensor.Key].ContainsKey(sensorCapability.Key) &&
+                            sensorCapability.Value != null)
                         {
                             await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                                 .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
@@ -492,7 +497,8 @@ namespace HomeAutio.Mqtt.Ecobee
                                 .Build())
                                 .ConfigureAwait(false);
                         }
-                        else if (sensorCapability.Value != _thermostatStatus[thermostat.Identifier].Sensors[sensor.Key][sensorCapability.Key])
+                        else if (sensorCapability.Value != _thermostatStatus[thermostat.Identifier].Sensors[sensor.Key][sensorCapability.Key] &&
+                            sensorCapability.Value != null)
                         {
                             await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                                 .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
@@ -508,18 +514,18 @@ namespace HomeAutio.Mqtt.Ecobee
             else
             {
                 // Publish initial state
-                foreach (var device in thermostatStatus.EquipmentStatus)
+                foreach (var device in thermostatStatus.EquipmentStatus.Where(x => x.Value != null))
                 {
                     await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                         .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{device.Key}")
-                        .WithPayload(device.Value.ToString())
+                        .WithPayload(device.Value)
                         .WithAtLeastOnceQoS()
                         .WithRetainFlag()
                         .Build())
                         .ConfigureAwait(false);
                 }
 
-                foreach (var status in thermostatStatus.Status)
+                foreach (var status in thermostatStatus.Status.Where(x => x.Value != null))
                 {
                     await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                         .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
@@ -531,7 +537,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 }
 
                 // Hold status
-                foreach (var holdStatus in thermostatStatus.ActiveHold)
+                foreach (var holdStatus in thermostatStatus.ActiveHold.Where(x => x.Value != null))
                 {
                     await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                         .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
@@ -544,7 +550,7 @@ namespace HomeAutio.Mqtt.Ecobee
 
                 foreach (var sensor in thermostatStatus.Sensors)
                 {
-                    foreach (var sensorCapability in sensor.Value)
+                    foreach (var sensorCapability in sensor.Value.Where(x => x.Value != null))
                     {
                         await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
