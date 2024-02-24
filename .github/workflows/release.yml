@@ -5,10 +5,10 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+.[0-9]+"
 
 env:
-  DOTNETVERSION: "7.0.x"
+  DOTNETVERSION: "8.0.x"
   APP: "HomeAutio.Mqtt.Ecobee"
   SOLUTION: "./src/HomeAutio.Mqtt.Ecobee.sln"
-  BUILDOUTPUTPATH: "./src/HomeAutio.Mqtt.Ecobee/bin/Release/net7.0"
+  BUILDOUTPUTPATH: "./src/HomeAutio.Mqtt.Ecobee/bin/Release/net8.0"
   REGISTRY: ghcr.io
   DOCKER_NAME: "i8beef/homeautio.mqtt.ecobee"
 
@@ -17,13 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
 
       - name: Setup .NET Core SDK ${{ env.DOTNETVERSION }}
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNETVERSION }}
 
@@ -48,13 +48,13 @@ jobs:
         run: dotnet test ${{ env.SOLUTION }} --no-restore --verbosity normal --logger trx --results-directory "TestResults"
 
       - name: Upload app build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP }}-${{ steps.version.outputs.version-without-v }}
           path: ${{ env.BUILDOUTPUTPATH }}
 
       - name: Upload TestResults build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: TestResults
           path: TestResults
@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest    
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0

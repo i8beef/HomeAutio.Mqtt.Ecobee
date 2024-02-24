@@ -1,5 +1,5 @@
 ARG VERSION=1.0.0.0
-FROM mcr.microsoft.com/dotnet/sdk:5.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 ARG VERSION
 WORKDIR /app
 
@@ -19,7 +19,7 @@ WORKDIR /app/HomeAutio.Mqtt.Ecobee
 RUN dotnet publish -o out
 
 # build runtime image
-FROM mcr.microsoft.com/dotnet/runtime:5.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine AS runtime
 WORKDIR /app
 COPY --from=publish /app/HomeAutio.Mqtt.Ecobee/out ./
 

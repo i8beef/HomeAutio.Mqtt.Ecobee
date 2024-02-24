@@ -8,20 +8,20 @@ on:
       - "**"
 
 env:
-  DOTNETVERSION: "7.0.x"
+  DOTNETVERSION: "8.0.x"
   APP: "HomeAutio.Mqtt.Ecobee"
   SOLUTION: "./src/HomeAutio.Mqtt.Ecobee.sln"
-  BUILDOUTPUTPATH: "./src/HomeAutio.Mqtt.Ecobee/bin/Release/net7.0"
+  BUILDOUTPUTPATH: "./src/HomeAutio.Mqtt.Ecobee/bin/Release/net8.0"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup .NET Core SDK ${{ env.DOTNETVERSION }}
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNETVERSION }}
 
@@ -32,7 +32,7 @@ jobs:
         run: dotnet build ${{ env.SOLUTION }} --configuration Release --no-restore
 
       - name: Upload app build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP }}
           path: ${{ env.BUILDOUTPUTPATH }}
@@ -41,7 +41,7 @@ jobs:
         run: dotnet test ${{ env.SOLUTION }} --no-restore --verbosity normal --logger trx --results-directory "TestResults"
 
       - name: Upload TestResults build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: TestResults
           path: TestResults
