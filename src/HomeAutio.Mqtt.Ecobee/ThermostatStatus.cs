@@ -1,22 +1,22 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace HomeAutio.Mqtt.Ecobee
 {
     /// <summary>
     /// Internal thermostat status.
     /// </summary>
-    internal class ThermostatStatus
+    internal sealed class ThermostatStatus
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ThermostatStatus"/> class.
         /// </summary>
         public ThermostatStatus()
         {
-            Sensors = new Dictionary<string, IDictionary<string, string>>();
+            Sensors = new Dictionary<string, IDictionary<string, string?>>();
 
-            Status = new Dictionary<string, string>();
+            Status = new Dictionary<string, string?>();
 
-            ActiveHold = new Dictionary<string, string>
+            ActiveHold = new Dictionary<string, string?>
             {
                 { "running", "false" },
                 { "startTime", null },
@@ -29,7 +29,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 { "ventilatorMinOnTime", null }
             };
 
-            EquipmentStatus = new Dictionary<string, string>
+            EquipmentStatus = new Dictionary<string, string?>
             {
                 { "heatPump", "off" },
                 { "heatPump2", "off" },
@@ -52,21 +52,21 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <summary>
         /// Running event.
         /// </summary>
-        public IDictionary<string, string> ActiveHold { get; }
+        public IDictionary<string, string?> ActiveHold { get; }
 
         /// <summary>
         /// Equipment statuses.
         /// </summary>
-        public IDictionary<string, string> EquipmentStatus { get; }
+        public IDictionary<string, string?> EquipmentStatus { get; }
 
         /// <summary>
         /// Sensor statuses.
         /// </summary>
-        public IDictionary<string, IDictionary<string, string>> Sensors { get; }
+        public IDictionary<string, IDictionary<string, string?>> Sensors { get; }
 
         /// <summary>
         /// Thermostat statuses.
         /// </summary>
-        public IDictionary<string, string> Status { get; }
+        public IDictionary<string, string?> Status { get; }
     }
 }

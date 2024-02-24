@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using HomeAutio.Mqtt.Core;
 using I8Beef.Ecobee;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +20,7 @@ namespace HomeAutio.Mqtt.Ecobee
     /// </summary>
     public class Program
     {
-        private static StoredAuthToken _currentAuthToken;
+        private static StoredAuthToken? _currentAuthToken;
 
         /// <summary>
         /// Main program entry point.
@@ -29,7 +30,9 @@ namespace HomeAutio.Mqtt.Ecobee
         {
             var environmentName = Environment.GetEnvironmentVariable("ENVIRONMENT");
             if (string.IsNullOrEmpty(environmentName))
+            {
                 environmentName = "Development";
+            }
 
             // Setup config
             var config = new ConfigurationBuilder()
@@ -75,72 +78,67 @@ namespace HomeAutio.Mqtt.Ecobee
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Setup client
-                    services.AddScoped<Client>(serviceProvider =>
-                    {
-                        return new Client(
-                            config.GetValue<string>("ecobee:ecobeeAppKey"),
-                            ReadTokenFileAsync,
-                            WriteTokenFileAsync);
-                    });
+                    services.AddScoped(serviceProvider => new Client(
+                        config.GetValue<string>("ecobee:ecobeeAppKey"),
+                        ReadTokenFileAsync,
+                        WriteTokenFileAsync));
 
                     // Setup service instance
                     services.AddScoped<IHostedService, EcobeeMqttService>(serviceProvider =>
                     {
-                        var brokerSettings = new Core.BrokerSettings
-                        {
-                            BrokerIp = config.GetValue<string>("mqtt:brokerIp"),
-                            BrokerPort = config.GetValue<int>("mqtt:brokerPort"),
-                            BrokerUsername = config.GetValue<string>("mqtt:brokerUsername"),
-                            BrokerPassword = config.GetValue<string>("mqtt:brokerPassword"),
-                            BrokerUseTls = config.GetValue<bool>("mqtt:brokerUseTls", false)
-                        };
-
                         // TLS settings
-                        if (brokerSettings.BrokerUseTls)
+                        var brokerUseTls = config.GetValue("mqtt:brokerUseTls", false);
+                        BrokerTlsSettings? brokerTlsSettings = null;
+                        if (brokerUseTls)
                         {
-                            var brokerTlsSettings = new Core.BrokerTlsSettings
+                            var sslProtocol = config.GetValue("mqtt:brokerTlsSettings:protocol", "1.2") switch
                             {
-                                AllowUntrustedCertificates = config.GetValue<bool>("mqtt:brokerTlsSettings:allowUntrustedCertificates", false),
-                                IgnoreCertificateChainErrors = config.GetValue<bool>("mqtt:brokerTlsSettings:ignoreCertificateChainErrors", false),
-                                IgnoreCertificateRevocationErrors = config.GetValue<bool>("mqtt:brokerTlsSettings:ignoreCertificateRevocationErrors", false)
+                                "1.2" => System.Security.Authentication.SslProtocols.Tls12,
+                                "1.3" => System.Security.Authentication.SslProtocols.Tls13,
+                                _ => throw new NotSupportedException($"Only TLS 1.2 and 1.3 are supported")
                             };
 
-                            switch (config.GetValue<string>("mqtt:brokerTlsSettings:protocol", "1.2"))
-                            {
-                                case "1.0":
-                                    brokerTlsSettings.SslProtocol = System.Security.Authentication.SslProtocols.Tls;
-                                    break;
-                                case "1.1":
-                                    brokerTlsSettings.SslProtocol = System.Security.Authentication.SslProtocols.Tls11;
-                                    break;
-                                case "1.2":
-                                default:
-                                    brokerTlsSettings.SslProtocol = System.Security.Authentication.SslProtocols.Tls12;
-                                    break;
-                            }
-
                             var brokerTlsCertificatesSection = config.GetSection("mqtt:brokerTlsSettings:certificates");
-                            brokerTlsSettings.Certificates = brokerTlsCertificatesSection.GetChildren()
+                            var brokerTlsCertificates = brokerTlsCertificatesSection.GetChildren()
                                 .Select(x =>
                                 {
                                     var file = x.GetValue<string>("file");
                                     var passPhrase = x.GetValue<string>("passPhrase");
 
                                     if (!File.Exists(file))
+                                    {
                                         throw new FileNotFoundException($"Broker Certificate '{file}' is missing!");
+                                    }
 
                                     return !string.IsNullOrEmpty(passPhrase) ?
                                         new X509Certificate2(file, passPhrase) :
                                         new X509Certificate2(file);
                                 }).ToList();
 
-                            brokerSettings.BrokerTlsSettings = brokerTlsSettings;
+                            brokerTlsSettings = new BrokerTlsSettings
+                            {
+                                AllowUntrustedCertificates = config.GetValue("mqtt:brokerTlsSettings:allowUntrustedCertificates", false),
+                                IgnoreCertificateChainErrors = config.GetValue("mqtt:brokerTlsSettings:ignoreCertificateChainErrors", false),
+                                IgnoreCertificateRevocationErrors = config.GetValue("mqtt:brokerTlsSettings:ignoreCertificateRevocationErrors", false),
+                                SslProtocol = sslProtocol,
+                                Certificates = brokerTlsCertificates
+                            };
                         }
+
+                        var brokerSettings = new BrokerSettings
+                        {
+                            BrokerIp = config.GetValue<string>("mqtt:brokerIp") ?? throw new InvalidOperationException("Configuration value mqtt:brokerIp not found"),
+                            BrokerPort = config.GetValue("mqtt:brokerPort", 1883),
+                            BrokerUsername = config.GetValue<string>("mqtt:brokerUsername"),
+                            BrokerPassword = config.GetValue<string>("mqtt:brokerPassword"),
+                            BrokerUseTls = brokerUseTls,
+                            BrokerTlsSettings = brokerTlsSettings
+                        };
 
                         return new EcobeeMqttService(
                             serviceProvider.GetRequiredService<ILogger<EcobeeMqttService>>(),
                             serviceProvider.GetRequiredService<Client>(),
-                            config.GetValue<string>("ecobee:ecobeeName"),
+                            config.GetValue<string>("ecobee:ecobeeName") ?? "default",
                             config.GetValue<int>("ecobee:refreshInterval"),
                             brokerSettings);
                     });
@@ -172,9 +170,9 @@ namespace HomeAutio.Mqtt.Ecobee
         /// </summary>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The <see cref="StoredAuthToken"/>.</returns>
-        private static async Task<StoredAuthToken> ReadTokenFileAsync(CancellationToken cancellationToken = default)
+        private static async Task<StoredAuthToken?> ReadTokenFileAsync(CancellationToken cancellationToken = default)
         {
-            if (_currentAuthToken == null && File.Exists(@"token.txt"))
+            if (_currentAuthToken is null && File.Exists(@"token.txt"))
             {
                 var tokenText = await File.ReadAllLinesAsync(@"token.txt", cancellationToken);
                 _currentAuthToken = new StoredAuthToken

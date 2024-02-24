@@ -1,9 +1,9 @@
-﻿namespace HomeAutio.Mqtt.Ecobee
+namespace HomeAutio.Mqtt.Ecobee
 {
     /// <summary>
     /// Revision status.
     /// </summary>
-    internal class RevisionStatus
+    internal sealed class RevisionStatus
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="RevisionStatus"/> class.
@@ -62,43 +62,43 @@
         /// <summary>
         /// The thermostat identifier.
         /// </summary>
-        public string ThermostatIdentifier { get; set; }
+        public string ThermostatIdentifier { get; init; }
 
         /// <summary>
         /// The thermostat name, otherwise an empty field if one is not set.
         /// </summary>
-        public string ThermostatName { get; set; }
+        public string ThermostatName { get; init; }
 
         /// <summary>
         /// Whether the thermostat is currently connected to the ecobee servers.
         /// </summary>
-        public bool Connected { get; set; }
+        public bool Connected { get; init; }
 
         /// <summary>
         /// Current thermostat revision. This revision is incremented whenever the thermostat program,
         /// hvac mode, settings or configuration change. Changes to the following objects will update
         /// the thermostat revision: Settings, Program, Event, Device.
         /// </summary>
-        public string ThermostatRevision { get; set; }
+        public string? ThermostatRevision { get; init; }
 
         /// <summary>
         /// Current revision of the thermostat alerts.This revision is incremented whenever a new Alert
         /// is issued or an Alert is modified(acknowledged or deferred).
         /// </summary>
-        public string AlertsRevision { get; set; }
+        public string? AlertsRevision { get; init; }
 
         /// <summary>
         /// The current revision of the thermostat runtime settings. This revision is incremented whenever
         /// the thermostat transmits a new status message, or updates the equipment state or Remote Sensor
         /// readings. The shortest interval this revision may change is 3 minutes.
         /// </summary>
-        public string RuntimeRevision { get; set; }
+        public string? RuntimeRevision { get; init; }
 
         /// <summary>
         /// The current revision of the thermostat interval runtime settings. This revision is incremented
         /// whenever the thermostat transmits a new status message in the form of a Runtime object. The
         /// thermostat updates this on a 15 minute interval.
         /// </summary>
-        public string IntervalRevision { get; set; }
+        public string? IntervalRevision { get; init; }
     }
 }

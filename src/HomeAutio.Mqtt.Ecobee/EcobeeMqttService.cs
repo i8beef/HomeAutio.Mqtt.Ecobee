@@ -1,12 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 using HomeAutio.Mqtt.Core;
-using HomeAutio.Mqtt.Core.Utilities;
 using I8Beef.Ecobee;
 using I8Beef.Ecobee.Protocol;
 using I8Beef.Ecobee.Protocol.Functions;
@@ -14,7 +12,7 @@ using I8Beef.Ecobee.Protocol.Objects;
 using I8Beef.Ecobee.Protocol.Thermostat;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
-using MQTTnet.Extensions.ManagedClient;
+using MQTTnet.Client;
 using Newtonsoft.Json;
 
 namespace HomeAutio.Mqtt.Ecobee
@@ -28,12 +26,12 @@ namespace HomeAutio.Mqtt.Ecobee
 
         private readonly Client _client;
 
-        private readonly IDictionary<string, RevisionStatus> _revisionStatusCache;
-        private readonly IDictionary<string, ThermostatStatus> _thermostatStatus;
+        private readonly Dictionary<string, RevisionStatus> _revisionStatusCache;
+        private readonly Dictionary<string, ThermostatStatus> _thermostatStatus;
         private readonly int _refreshInterval;
 
-        private bool _disposed = false;
-        private System.Timers.Timer _refresh;
+        private bool _disposed;
+        private System.Timers.Timer? _refresh;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EcobeeMqttService"/> class.
@@ -69,11 +67,7 @@ namespace HomeAutio.Mqtt.Ecobee
                 .ConfigureAwait(false);
 
             // Enable refresh
-            if (_refresh != null)
-            {
-                _refresh.Dispose();
-            }
-
+            _refresh?.Dispose();
             _refresh = new System.Timers.Timer();
             _refresh.Elapsed += async (sender, e) => await RefreshAsync();
             _refresh.Interval = _refreshInterval;
@@ -94,7 +88,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// Handles commands for the Harmony published to MQTT.
         /// </summary>
         /// <param name="e">Event args.</param>
-        protected override async void Mqtt_MqttMsgPublishReceived(MqttApplicationMessageReceivedEventArgs e)
+        protected override async Task MqttMsgPublishReceived(MqttApplicationMessageReceivedEventArgs e)
         {
             var message = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
             _log.LogInformation("MQTT message received for topic " + e.ApplicationMessage.Topic + ": " + message);
@@ -124,7 +118,9 @@ namespace HomeAutio.Mqtt.Ecobee
             switch (thermostatTopic)
             {
                 case "desiredCool/set":
-                    if (int.TryParse(message, out int desiredCoolValue) && int.TryParse(_thermostatStatus[thermostatId].Status["desiredHeat"], out int currentDesiredHeatValue))
+                    if (int.TryParse(message, out var desiredCoolValue)
+                        && _thermostatStatus.TryGetValue(thermostatId, out var desiredCoolThermostatStatus)
+                        && decimal.TryParse(desiredCoolThermostatStatus.Status["desiredHeat"], out var currentDesiredHeatValue))
                     {
                         request.Functions = new List<Function>
                         {
@@ -134,7 +130,7 @@ namespace HomeAutio.Mqtt.Ecobee
                                 {
                                     HoldType = "nextTransition",
                                     CoolHoldTemp = desiredCoolValue * 10,
-                                    HeatHoldTemp = currentDesiredHeatValue * 10
+                                    HeatHoldTemp = (int)Math.Round(currentDesiredHeatValue * 10, MidpointRounding.AwayFromZero)
                                 }
                             }
                         };
@@ -148,7 +144,7 @@ namespace HomeAutio.Mqtt.Ecobee
 
                     break;
                 case "desiredFanMode/set":
-                    if (message == "auto" || message == "off" || message == "on")
+                    if (message is "auto" or "off" or "on")
                     {
                         request.Functions = new List<Function>
                         {
@@ -172,7 +168,9 @@ namespace HomeAutio.Mqtt.Ecobee
 
                     break;
                 case "desiredHeat/set":
-                    if (int.TryParse(message, out int desiredHeatValue) && int.TryParse(_thermostatStatus[thermostatId].Status["desiredCool"], out int currentDesiredCoolValue))
+                    if (int.TryParse(message, out var desiredHeatValue)
+                        && _thermostatStatus.TryGetValue(thermostatId, out var desiredHeatThermostatStatus)
+                        && decimal.TryParse(desiredHeatThermostatStatus.Status["desiredCool"], out var currentDesiredCoolValue))
                     {
                         request.Functions = new List<Function>
                         {
@@ -181,7 +179,7 @@ namespace HomeAutio.Mqtt.Ecobee
                                 Params = new SetHoldParams
                                 {
                                     HoldType = "nextTransition",
-                                    CoolHoldTemp = currentDesiredCoolValue * 10,
+                                    CoolHoldTemp = (int)Math.Round(currentDesiredCoolValue * 10, MidpointRounding.AwayFromZero),
                                     HeatHoldTemp = desiredHeatValue * 10
                                 }
                             }
@@ -230,7 +228,7 @@ namespace HomeAutio.Mqtt.Ecobee
 
                     break;
                 case "hvacMode/set":
-                    if (message == "auto" || message == "auxHeatOnly" || message == "cool" || message == "heat" || message == "off")
+                    if (message is "auto" or "auxHeatOnly" or "cool" or "heat" or "off")
                     {
                         request.Thermostat = new { Settings = new { HvacMode = message } };
                         var hvacModeResponse = await _client.PostAsync<ThermostatUpdateRequest, Response>(request)
@@ -336,7 +334,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// </summary>
         /// <param name="thermostat">Thermostat status.</param>
         /// <returns>>A <see cref="Task"/> representing the asynchronous operation.</returns>
-        private async Task UpdateState(Thermostat thermostat)
+        private async Task UpdateState(Thermostat? thermostat)
         {
             if (thermostat == null)
             {
@@ -393,7 +391,7 @@ namespace HomeAutio.Mqtt.Ecobee
                         s =>
                         {
                             // Convert temperature values to human readable
-                            if (string.Equals(s.Type, "temperature", System.StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(s.Type, "temperature", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (decimal.TryParse(s.Value, out var decimalValue))
                                 {
@@ -402,7 +400,7 @@ namespace HomeAutio.Mqtt.Ecobee
                             }
 
                             return s.Value;
-                        });
+                        })!;
                 }
             }
 
@@ -421,18 +419,18 @@ namespace HomeAutio.Mqtt.Ecobee
                 thermostatStatus.ActiveHold["ventilatorMinOnTime"] = holdEvent.VentilatorMinOnTime.HasValue ? holdEvent.VentilatorMinOnTime.Value.ToString() : null;
             }
 
-            if (_thermostatStatus.ContainsKey(thermostat.Identifier))
+            if (_thermostatStatus.TryGetValue(thermostat.Identifier, out var currentThermostatStatus))
             {
                 // Publish updates
                 foreach (var device in thermostatStatus.EquipmentStatus)
                 {
-                    if (device.Value != _thermostatStatus[thermostat.Identifier].EquipmentStatus[device.Key] &&
+                    if (device.Value != currentThermostatStatus.EquipmentStatus[device.Key] &&
                         device.Value != null)
                     {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{device.Key}")
                             .WithPayload(device.Value)
-                            .WithAtLeastOnceQoS()
+                            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                             .WithRetainFlag()
                             .Build())
                             .ConfigureAwait(false);
@@ -441,13 +439,13 @@ namespace HomeAutio.Mqtt.Ecobee
 
                 foreach (var status in thermostatStatus.Status)
                 {
-                    if (status.Value != _thermostatStatus[thermostat.Identifier].Status[status.Key] &&
+                    if (status.Value != currentThermostatStatus.Status[status.Key] &&
                         status.Value != null)
                     {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
                             .WithPayload(status.Value)
-                            .WithAtLeastOnceQoS()
+                            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                             .WithRetainFlag()
                             .Build())
                             .ConfigureAwait(false);
@@ -457,13 +455,13 @@ namespace HomeAutio.Mqtt.Ecobee
                 // Hold status
                 foreach (var holdStatus in thermostatStatus.ActiveHold)
                 {
-                    if (holdStatus.Value != _thermostatStatus[thermostat.Identifier].ActiveHold[holdStatus.Key] &&
+                    if (holdStatus.Value != currentThermostatStatus.ActiveHold[holdStatus.Key] &&
                         holdStatus.Value != null)
                     {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
                             .WithPayload(holdStatus.Value)
-                            .WithAtLeastOnceQoS()
+                            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                             .WithRetainFlag()
                             .Build())
                             .ConfigureAwait(false);
@@ -475,35 +473,35 @@ namespace HomeAutio.Mqtt.Ecobee
                 {
                     foreach (var sensorCapability in sensor.Value)
                     {
-                        if (!_thermostatStatus[thermostat.Identifier].Sensors.ContainsKey(sensor.Key) &&
+                        if (!currentThermostatStatus.Sensors.ContainsKey(sensor.Key) &&
                             sensorCapability.Value != null)
                         {
-                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                                 .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
                                 .WithPayload(sensorCapability.Value)
-                                .WithAtLeastOnceQoS()
+                                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                                 .WithRetainFlag()
                                 .Build())
                                 .ConfigureAwait(false);
                         }
-                        else if (!_thermostatStatus[thermostat.Identifier].Sensors[sensor.Key].ContainsKey(sensorCapability.Key) &&
+                        else if (!currentThermostatStatus.Sensors[sensor.Key].ContainsKey(sensorCapability.Key) &&
                             sensorCapability.Value != null)
                         {
-                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                                 .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
                                 .WithPayload(sensorCapability.Value)
-                                .WithAtLeastOnceQoS()
+                                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                                 .WithRetainFlag()
                                 .Build())
                                 .ConfigureAwait(false);
                         }
-                        else if (sensorCapability.Value != _thermostatStatus[thermostat.Identifier].Sensors[sensor.Key][sensorCapability.Key] &&
+                        else if (sensorCapability.Value != currentThermostatStatus.Sensors[sensor.Key][sensorCapability.Key] &&
                             sensorCapability.Value != null)
                         {
-                            await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                            await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                                 .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
                                 .WithPayload(sensorCapability.Value)
-                                .WithAtLeastOnceQoS()
+                                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                                 .WithRetainFlag()
                                 .Build())
                                 .ConfigureAwait(false);
@@ -516,10 +514,10 @@ namespace HomeAutio.Mqtt.Ecobee
                 // Publish initial state
                 foreach (var device in thermostatStatus.EquipmentStatus.Where(x => x.Value != null))
                 {
-                    await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                    await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                         .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{device.Key}")
                         .WithPayload(device.Value)
-                        .WithAtLeastOnceQoS()
+                        .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                         .WithRetainFlag()
                         .Build())
                         .ConfigureAwait(false);
@@ -527,10 +525,10 @@ namespace HomeAutio.Mqtt.Ecobee
 
                 foreach (var status in thermostatStatus.Status.Where(x => x.Value != null))
                 {
-                    await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                    await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                         .WithTopic($"{TopicRoot}/{thermostat.Identifier}/{status.Key}")
                         .WithPayload(status.Value)
-                        .WithAtLeastOnceQoS()
+                        .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                         .WithRetainFlag()
                         .Build())
                         .ConfigureAwait(false);
@@ -539,10 +537,10 @@ namespace HomeAutio.Mqtt.Ecobee
                 // Hold status
                 foreach (var holdStatus in thermostatStatus.ActiveHold.Where(x => x.Value != null))
                 {
-                    await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                    await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                         .WithTopic($"{TopicRoot}/{thermostat.Identifier}/hold/{holdStatus.Key}")
                         .WithPayload(holdStatus.Value)
-                        .WithAtLeastOnceQoS()
+                        .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                         .WithRetainFlag()
                         .Build())
                         .ConfigureAwait(false);
@@ -552,10 +550,10 @@ namespace HomeAutio.Mqtt.Ecobee
                 {
                     foreach (var sensorCapability in sensor.Value.Where(x => x.Value != null))
                     {
-                        await MqttClient.PublishAsync(new MqttApplicationMessageBuilder()
+                        await MqttClient.EnqueueAsync(new MqttApplicationMessageBuilder()
                             .WithTopic($"{TopicRoot}/{thermostat.Identifier}/sensor/{sensor.Key.Sluggify()}/{sensorCapability.Key}")
                             .WithPayload(sensorCapability.Value)
-                            .WithAtLeastOnceQoS()
+                            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                             .WithRetainFlag()
                             .Build())
                             .ConfigureAwait(false);
@@ -577,7 +575,9 @@ namespace HomeAutio.Mqtt.Ecobee
         protected override void Dispose(bool disposing)
         {
             if (_disposed)
+            {
                 return;
+            }
 
             if (disposing)
             {
