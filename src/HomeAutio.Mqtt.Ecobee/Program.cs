@@ -1,16 +1,16 @@
 using System;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using HomeAutio.Mqtt.Core;
+using HomeAutio.Mqtt.Core.Options;
+using HomeAutio.Mqtt.Ecobee.Options;
 using I8Beef.Ecobee;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace HomeAutio.Mqtt.Ecobee
@@ -77,71 +77,21 @@ namespace HomeAutio.Mqtt.Ecobee
                 .ConfigureLogging((hostingContext, logging) => logging.AddSerilog())
                 .ConfigureServices((hostContext, services) =>
                 {
+                    services.AddOptions<EcobeeOptions>().BindConfiguration("ecobee");
+                    services.AddOptions<MqttOptions>().BindConfiguration("mqtt");
+
                     // Setup client
                     services.AddScoped(serviceProvider => new Client(
-                        config.GetValue<string>("ecobee:ecobeeAppKey"),
+                        serviceProvider.GetRequiredService<IOptions<EcobeeOptions>>().Value.EcobeeAppKey,
                         ReadTokenFileAsync,
                         WriteTokenFileAsync));
 
                     // Setup service instance
-                    services.AddScoped<IHostedService, EcobeeMqttService>(serviceProvider =>
-                    {
-                        // TLS settings
-                        var brokerUseTls = config.GetValue("mqtt:brokerUseTls", false);
-                        BrokerTlsSettings? brokerTlsSettings = null;
-                        if (brokerUseTls)
-                        {
-                            var sslProtocol = config.GetValue("mqtt:brokerTlsSettings:protocol", "1.2") switch
-                            {
-                                "1.2" => System.Security.Authentication.SslProtocols.Tls12,
-                                "1.3" => System.Security.Authentication.SslProtocols.Tls13,
-                                _ => throw new NotSupportedException($"Only TLS 1.2 and 1.3 are supported")
-                            };
-
-                            var brokerTlsCertificatesSection = config.GetSection("mqtt:brokerTlsSettings:certificates");
-                            var brokerTlsCertificates = brokerTlsCertificatesSection.GetChildren()
-                                .Select(x =>
-                                {
-                                    var file = x.GetValue<string>("file");
-                                    var passPhrase = x.GetValue<string>("passPhrase");
-
-                                    if (!File.Exists(file))
-                                    {
-                                        throw new FileNotFoundException($"Broker Certificate '{file}' is missing!");
-                                    }
-
-                                    return !string.IsNullOrEmpty(passPhrase) ?
-                                        new X509Certificate2(file, passPhrase) :
-                                        new X509Certificate2(file);
-                                }).ToList();
-
-                            brokerTlsSettings = new BrokerTlsSettings
-                            {
-                                AllowUntrustedCertificates = config.GetValue("mqtt:brokerTlsSettings:allowUntrustedCertificates", false),
-                                IgnoreCertificateChainErrors = config.GetValue("mqtt:brokerTlsSettings:ignoreCertificateChainErrors", false),
-                                IgnoreCertificateRevocationErrors = config.GetValue("mqtt:brokerTlsSettings:ignoreCertificateRevocationErrors", false),
-                                SslProtocol = sslProtocol,
-                                Certificates = brokerTlsCertificates
-                            };
-                        }
-
-                        var brokerSettings = new BrokerSettings
-                        {
-                            BrokerIp = config.GetValue<string>("mqtt:brokerIp") ?? throw new InvalidOperationException("Configuration value mqtt:brokerIp not found"),
-                            BrokerPort = config.GetValue("mqtt:brokerPort", 1883),
-                            BrokerUsername = config.GetValue<string>("mqtt:brokerUsername"),
-                            BrokerPassword = config.GetValue<string>("mqtt:brokerPassword"),
-                            BrokerUseTls = brokerUseTls,
-                            BrokerTlsSettings = brokerTlsSettings
-                        };
-
-                        return new EcobeeMqttService(
+                    services.AddScoped<IHostedService, EcobeeMqttService>(serviceProvider => new EcobeeMqttService(
                             serviceProvider.GetRequiredService<ILogger<EcobeeMqttService>>(),
                             serviceProvider.GetRequiredService<Client>(),
-                            config.GetValue<string>("ecobee:ecobeeName") ?? "default",
-                            config.GetValue<int>("ecobee:refreshInterval"),
-                            brokerSettings);
-                    });
+                            serviceProvider.GetRequiredService<IOptions<EcobeeOptions>>(),
+                            serviceProvider.GetRequiredService<IOptions<MqttOptions>>()));
                 });
         }
 

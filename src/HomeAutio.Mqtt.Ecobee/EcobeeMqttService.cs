@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HomeAutio.Mqtt.Core;
+using HomeAutio.Mqtt.Core.Options;
+using HomeAutio.Mqtt.Ecobee.Options;
 using I8Beef.Ecobee;
 using I8Beef.Ecobee.Protocol;
 using I8Beef.Ecobee.Protocol.Functions;
 using I8Beef.Ecobee.Protocol.Objects;
 using I8Beef.Ecobee.Protocol.Thermostat;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Client;
 using Newtonsoft.Json;
@@ -38,19 +40,17 @@ namespace HomeAutio.Mqtt.Ecobee
         /// </summary>
         /// <param name="logger">Logging instance.</param>
         /// <param name="ecobeeClient">The Ecobee client.</param>
-        /// <param name="ecobeeName">The target Ecobee name.</param>
-        /// <param name="refreshInterval">The refresh interval.</param>
-        /// <param name="brokerSettings">MQTT broker settings.</param>
+        /// <param name="ecobeeOptions">The Evobee options.</param>
+        /// <param name="mqttOptions">MQTT broker options.</param>
         public EcobeeMqttService(
             ILogger<EcobeeMqttService> logger,
             Client ecobeeClient,
-            string ecobeeName,
-            int refreshInterval,
-            BrokerSettings brokerSettings)
-            : base(logger, brokerSettings, "ecobee/" + ecobeeName)
+            IOptions<EcobeeOptions> ecobeeOptions,
+            IOptions<MqttOptions> mqttOptions)
+            : base(logger, mqttOptions, "ecobee/" + ecobeeOptions.Value.EcobeeName)
         {
             _log = logger;
-            _refreshInterval = refreshInterval * 1000;
+            _refreshInterval = ecobeeOptions.Value.RefreshInterval * 1000;
             SubscribedTopics.Add(TopicRoot + "/+/+/set");
 
             _client = ecobeeClient;
@@ -90,7 +90,7 @@ namespace HomeAutio.Mqtt.Ecobee
         /// <param name="e">Event args.</param>
         protected override async Task MqttMsgPublishReceived(MqttApplicationMessageReceivedEventArgs e)
         {
-            var message = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+            var message = e.ApplicationMessage.ConvertPayloadToString();
             _log.LogInformation("MQTT message received for topic " + e.ApplicationMessage.Topic + ": " + message);
 
             // Parse topic out
